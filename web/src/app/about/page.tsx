@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: 'About — Hexcast',
   description: 'How Hexcast works: 88 curated Ethereum sources, AI-powered 60-word summaries, 8 categories of signal. Open source, no paywall, updated continuously.',
