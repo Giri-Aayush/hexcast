@@ -63,11 +63,12 @@ beforeEach(() => {
 // --- Tests ---
 
 describe('GET /og', () => {
-  it('returns homepage OG image when no id provided', async () => {
+  it('returns 400 when id query param is missing', async () => {
     const res = await GET(req('http://localhost:3000/og'));
 
-    expect(res.status).toBe(200);
-    expect(res).toBeInstanceOf(MockImageResponse);
+    expect(res.status).toBe(400);
+    const text = await res.text();
+    expect(text).toBe('Missing id');
   });
 
   it('returns 404 when card not found', async () => {

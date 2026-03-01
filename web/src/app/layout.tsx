@@ -29,20 +29,11 @@ export const metadata: Metadata = {
     url: 'https://hexcast.xyz',
     siteName: 'Hexcast',
     type: 'website',
-    images: [
-      {
-        url: '/og',
-        width: 1200,
-        height: 630,
-        alt: 'Hexcast — Ethereum ecosystem intelligence',
-      },
-    ],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'Hexcast',
     description: 'Ethereum ecosystem intelligence — 60 words at a time.',
-    images: ['/og'],
   },
   appleWebApp: {
     capable: true,
