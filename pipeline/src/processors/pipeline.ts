@@ -39,7 +39,27 @@ class Semaphore {
 
 // ── Drain order ─────────────────────────────────────────────────────────
 
-export type DrainOrder = 'oldest-first' | 'round-robin';
+export type DrainOrder = 'oldest-first' | 'round-robin' | 'auto';
+
+/**
+ * How many batches deep the backlog has to be before `auto` switches to
+ * round-robin. Three means "the queue has not been keeping up for a few runs",
+ * at which point breadth matters more than recency: something is either cold or
+ * has been down. Below it, the queue is healthy and recency wins.
+ */
+const ROUND_ROBIN_BACKLOG_BATCHES = 3;
+
+/**
+ * `auto` exists because the flag alone did not reach the thing users see. The
+ * 6-hourly cron runs `npm run pipeline` with no arguments, so an opt-in flag
+ * meant production kept draining oldest-first and kept starving the same
+ * categories we fixed locally. Choosing by backlog depth needs no human to
+ * remember anything, and self-corrects after an outage.
+ */
+function resolveDrainOrder(requested: DrainOrder, backlog: number, batchSize: number): DrainOrder {
+  if (requested !== 'auto') return requested;
+  return backlog > batchSize * ROUND_ROBIN_BACKLOG_BATCHES ? 'round-robin' : 'oldest-first';
+}
 
 /**
  * Reorder a backlog so each pass takes one item per source instead of draining
@@ -89,7 +109,8 @@ export async function processRawItems(
 ): Promise<{ processed: number; skipped: number; failed: number }> {
   const config = loadConfig();
   const allItems = await getUnprocessedItems();
-  const drainOrder = options.drainOrder ?? 'oldest-first';
+  const requestedOrder = options.drainOrder ?? 'auto';
+  const drainOrder = resolveDrainOrder(requestedOrder, allItems.length, config.batchSize);
 
   const queue = drainOrder === 'round-robin' ? roundRobinBySource(allItems) : allItems;
 
@@ -103,7 +124,11 @@ export async function processRawItems(
     logger.info(`${deferred} items deferred to next run`);
   }
   logger.info(`Mode: ${config.env === 'prod' ? 'GPT-4.1 Mini (V1.3 prompt)' : 'Ollama 8B (V1 prompt)'}`);
-  logger.info(`Drain order: ${drainOrder}`);
+  logger.info(
+    requestedOrder === 'auto'
+      ? `Drain order: ${drainOrder} (auto — backlog ${allItems.length} vs ${config.batchSize * ROUND_ROBIN_BACKLOG_BATCHES} threshold)`
+      : `Drain order: ${drainOrder}`,
+  );
   logger.info(`Concurrency: ${config.concurrency} workers`);
 
   let processed = 0;
