@@ -1,17 +1,32 @@
-import posthog from 'posthog-js';
+import * as Sentry from '@sentry/nextjs';
 
-const posthogKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
+/**
+ * Browser error reporting.
+ *
+ * Separate DSN var from the server on purpose: this one is compiled into the client
+ * bundle, so it has to be NEXT_PUBLIC_. A Sentry DSN is safe to expose — it only
+ * grants the ability to send events — but the NEXT_PUBLIC_ prefix is what makes that
+ * exposure a decision rather than an accident.
+ *
+ * The CSP in next.config.ts already allows connect-src to https://*.sentry.io.
+ */
+const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
 
-if (posthogKey) {
-  posthog.init(posthogKey, {
-    api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
-    person_profiles: 'identified_only',
-    capture_pageview: true,
-    capture_pageleave: true,
-    capture_performance: true,
-    debug: false,
-    session_recording: {
-      maskAllInputs: true,
-    },
+if (dsn) {
+  Sentry.init({
+    dsn,
+    environment: process.env.NODE_ENV,
+    tracesSampleRate: Number(process.env.NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE ?? 0.1),
+
+    // Session replay is deliberately off. It is the single biggest addition to bundle
+    // size in this SDK, and the feed is one card per viewport — a replay would mostly
+    // record scrolling. Revisit if a bug turns up that traces cannot explain.
+    replaysSessionSampleRate: 0,
+    replaysOnErrorSampleRate: 0,
+
+    sendDefaultPii: false,
   });
 }
+
+/** Ties client-side navigations to their traces. No-op when init did not run. */
+export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;
