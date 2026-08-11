@@ -33,8 +33,8 @@ vi.mock('@/lib/supabase', () => ({
 }));
 
 vi.mock('@/lib/rate-limit', () => ({
-  checkRateLimit: vi.fn().mockReturnValue({ allowed: true, remaining: 299 }),
-  checkUserRateLimit: vi.fn().mockReturnValue({ allowed: true, remaining: 29 }),
+  checkRateLimit: vi.fn().mockResolvedValue({ allowed: true, remaining: 299 }),
+  checkUserRateLimit: vi.fn().mockResolvedValue({ allowed: true, remaining: 29 }),
 }));
 
 import { POST } from '../route';
@@ -63,7 +63,7 @@ beforeEach(() => {
   chainIndex = 0;
   mockChains.length = 0;
   mockAuth.mockResolvedValue({ userId: null } as any);
-  mockCheckUserRateLimit.mockReturnValue({ allowed: true, remaining: 29 });
+  mockCheckUserRateLimit.mockResolvedValue({ allowed: true, remaining: 29 });
 });
 
 describe('POST /api/feedback', () => {
@@ -79,7 +79,7 @@ describe('POST /api/feedback', () => {
 
   it('returns 429 when rate limited', async () => {
     mockAuth.mockResolvedValue({ userId: 'user_1' } as any);
-    mockCheckUserRateLimit.mockReturnValue({ allowed: false, remaining: 0 });
+    mockCheckUserRateLimit.mockResolvedValue({ allowed: false, remaining: 0 });
 
     const res = await POST(
       req('http://localhost:3000/api/feedback', {
