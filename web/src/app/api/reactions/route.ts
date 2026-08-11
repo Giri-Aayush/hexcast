@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Per-user rate limit: 30 reactions per minute
-  const rl = checkUserRateLimit(userId, 'reactions', 30, 60_000);
+  const rl = await checkUserRateLimit(userId, 'reactions', 30, 60_000);
   if (!rl.allowed) {
     return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 });
   }

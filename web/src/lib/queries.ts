@@ -129,6 +129,13 @@ export async function getCardById(id: string): Promise<Card | null> {
   const { data, error } = await supabase
     .from('cards')
     .select('*')
+    // Suspending a card has to remove it from the permalink too, not just the feed.
+    // Both feed paths already filter this; this one did not, so a suspended card
+    // vanished from the feed and stayed readable at /card/<id> — the URL people
+    // actually share, and so the one place a bad card is most likely to be seen.
+    // All three callers are public (the permalink page, its API route, the OG
+    // image); /admin reads through /api/admin/cards and is unaffected.
+    .eq('is_suspended', false)
     .eq('id', id)
     .maybeSingle();
 

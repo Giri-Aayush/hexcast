@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Per-user rate limit: 10 feedback per hour
-  const rl = checkUserRateLimit(userId, 'feedback', 10, 3_600_000);
+  const rl = await checkUserRateLimit(userId, 'feedback', 10, 3_600_000);
   if (!rl.allowed) {
     return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 });
   }

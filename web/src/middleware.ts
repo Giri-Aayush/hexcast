@@ -2,13 +2,13 @@ import { clerkMiddleware } from '@clerk/nextjs/server';
 import { NextResponse, type NextRequest } from 'next/server';
 import { checkRateLimit } from '@/lib/rate-limit';
 
-function rateLimit(request: NextRequest) {
+async function rateLimit(request: NextRequest) {
   if (!request.nextUrl.pathname.startsWith('/api/')) {
     return null;
   }
 
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
-  const { allowed, remaining } = checkRateLimit(ip);
+  const { allowed, remaining } = await checkRateLimit(ip);
 
   if (!allowed) {
     return NextResponse.json(
@@ -22,8 +22,8 @@ function rateLimit(request: NextRequest) {
   return response;
 }
 
-export default clerkMiddleware((_auth, request) => {
-  const rateLimitResponse = rateLimit(request);
+export default clerkMiddleware(async (_auth, request) => {
+  const rateLimitResponse = await rateLimit(request);
   if (rateLimitResponse) return rateLimitResponse;
 });
 
