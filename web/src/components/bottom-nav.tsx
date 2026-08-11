@@ -3,46 +3,42 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
+/**
+ * Bottom nav, per s3a: a dark pill on the light ground, four equal columns, the
+ * active tab a light slab inside it.
+ *
+ * The design labels the fourth tab YOU, not ABOUT — it is the account view (s3h),
+ * which is a different screen from the existing /about page. Pointing it at /about
+ * until that view exists, so the label matches the design and the destination is
+ * not a 404.
+ */
 const NAV_ITEMS = [
-  { href: '/', label: 'Feed', icon: '[]' },
-  { href: '/saved', label: 'Saved', icon: '[*]' },
-  { href: '/sources', label: 'Sources', icon: '[:]' },
-  { href: '/about', label: 'About', icon: '[?]' },
+  { href: '/', label: 'Feed' },
+  { href: '/saved', label: 'Saved' },
+  { href: '/sources', label: 'Sources' },
+  { href: '/about', label: 'You' },
 ];
 
 export function BottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 glass"
-      style={{
-        borderTop: '1px solid var(--border-medium)',
-      }}
-    >
-      <div className="mx-auto flex items-center justify-around pt-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
-        {NAV_ITEMS.map(item => {
+    <div className="hx-navwrap">
+      <nav className="hx-nav">
+        {NAV_ITEMS.map((item) => {
           const active = pathname === item.href;
           return (
             <Link
               key={item.href}
               href={item.href}
               data-nav={item.label.toLowerCase()}
-              className="btn-neon flex flex-col items-center justify-center gap-0.5 px-3 py-1"
-              style={{
-                color: active ? 'var(--accent)' : 'var(--text-muted)',
-                fontSize: '10px',
-                fontWeight: active ? 600 : 400,
-                letterSpacing: '0.1em',
-                textShadow: active ? '0 0 10px rgba(59, 130, 246, 0.3)' : 'none',
-              }}
+              aria-current={active ? 'page' : undefined}
             >
-              <span className="text-[12px]">{item.icon}</span>
-              <span className="uppercase">{item.label}</span>
-              {active && <div className="nav-glow-dot" />}
+              {item.label.toUpperCase()}
             </Link>
           );
         })}
-      </div>
-    </nav>
+      </nav>
+    </div>
   );
 }

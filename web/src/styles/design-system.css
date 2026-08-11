@@ -47,8 +47,8 @@
      --font-geist / --font-geist-mono once the package lands. See the follow-up
      issue — it needs a dependency install, which this branch cannot do safely
      while node_modules is shared between worktrees. */
-  --font-sans: var(--font-geist, 'Geist'), system-ui, -apple-system, sans-serif;
-  --font-mono: var(--font-geist-mono, 'Geist Mono'), ui-monospace, 'SF Mono', monospace;
+  --font-sans: 'Geist', system-ui, -apple-system, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, 'SF Mono', monospace;
 }
 
 /**
@@ -175,4 +175,22 @@
   --cat-line: rgba(58, 42, 8, 0.09);
   --cat-rule: rgba(58, 42, 8, 0.16);
   --cat-control: rgba(58, 42, 8, 0.06);
+}
+
+/**
+ * Retire the previous dark system's ground and its two overlays. The old scanline
+ * sat at z-index 9999 over the entire page; over a light UI it reads as banding and
+ * it covers even dialogs. Kept here rather than edited out of globals.css so that
+ * block stays one intact unit to delete once the last component migrates.
+ */
+body {
+  background: var(--ground);
+  font-family: var(--font-sans);
+  color: var(--ink);
+}
+
+body::before,
+body::after {
+  content: none;
+  display: none;
 }

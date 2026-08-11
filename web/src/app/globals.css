@@ -6,6 +6,7 @@
    still what every current component reads; it goes when the last one moves over. */
 @import "../styles/design-system.css";
 @import "../styles/card.css";
+@import "../styles/shell.css";
 
 /* ── Design System: Neon Intelligence Terminal (being replaced) ─── */
 :root {

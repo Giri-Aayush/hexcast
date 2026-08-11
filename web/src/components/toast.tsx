@@ -44,13 +44,14 @@ export function ToastProvider() {
       }`}
       style={{
         bottom: 'calc(60px + max(0.5rem, env(safe-area-inset-bottom)))',
-        background: 'var(--bg-elevated)',
-        border: '1px solid var(--border-medium)',
-        color: 'var(--text-primary)',
-        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.4), 0 0 10px var(--accent-dim)',
+        background: 'var(--ink)',
+        border: 'none',
+        color: 'var(--surface)',
+        // This system has no shadows; the ink ground is the separation.
+        borderRadius: 'var(--radius-control)',
       }}
     >
-      <span className="text-glow-accent" style={{ color: 'var(--accent)' }}>[&gt;]</span> {message}
+      {message}
     </div>
   );
 }

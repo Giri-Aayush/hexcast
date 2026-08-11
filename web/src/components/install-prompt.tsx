@@ -296,72 +296,28 @@ export function InstallPrompt() {
   }
 
   /* ── Desktop: bottom-right card ──────────────────────────────── */
+  /* Styled to the imported design: a light panel on the card radius, mono reserved
+     for the label and the host, Geist for the sentence. The old version was the
+     previous neon-terminal palette and read as a different product. */
   return (
-    <div
-      className="fixed z-50 animate-slide-up"
-      style={{
-        bottom: 'calc(72px + max(0.5rem, env(safe-area-inset-bottom)))',
-        right: '1rem',
-        width: '320px',
-      }}
-    >
-      <div
-        className="glass"
-        style={{
-          border: '1px solid var(--border-medium)',
-          padding: '16px',
-        }}
-      >
-        <div className="flex items-start justify-between mb-2">
-          <div
-            className="text-[10px] font-semibold tracking-widest uppercase"
-            style={{ color: 'var(--accent)' }}
-          >
-            hexcast on mobile
-          </div>
-          <button
-            onClick={handleDismiss}
-            className="btn-neon shrink-0 text-[11px] -mt-1"
-            style={{ color: 'var(--text-muted)', background: 'none', border: 'none' }}
-            aria-label="Dismiss"
-          >
-            &times;
-          </button>
-        </div>
-        <div
-          className="text-[9px] tracking-wider leading-relaxed mb-3"
-          style={{ color: 'var(--text-muted)' }}
-        >
-          take your intel feed on the go &mdash; open hexcast on your phone for instant access &amp; notifications
-        </div>
-
-        {/* Divider */}
-        <div className="h-px mb-3" style={{ background: 'var(--border-subtle)' }} />
-
-        {/* URL display */}
-        <div
-          className="flex items-center gap-2 px-3 py-2"
-          style={{
-            background: 'var(--bg-surface)',
-            border: '1px solid var(--border-subtle)',
-          }}
-        >
-          <span className="text-[10px] tracking-wider" style={{ color: 'var(--accent)' }}>&gt;</span>
-          <span
-            className="text-[11px] font-medium tracking-wider"
-            style={{ color: 'var(--text-primary)' }}
-          >
-            {typeof window !== 'undefined' ? window.location.host : 'hexcast.app'}
-          </span>
-        </div>
-
-        <div
-          className="text-[8px] tracking-wider mt-2"
-          style={{ color: 'var(--text-muted)' }}
-        >
-          visit on your phone&apos;s browser &bull; works best on chrome &amp; safari
-        </div>
+    <div className="hx-install" role="dialog" aria-label="Open Hexcast on mobile">
+      <div className="hx-install-head">
+        <span className="hx-install-label">Hexcast on mobile</span>
+        <button onClick={handleDismiss} className="hx-install-close" aria-label="Dismiss">
+          &times;
+        </button>
       </div>
+
+      <p className="hx-install-body">
+        Open hexcast on your phone to read the feed on the go, offline, with alerts
+        when something breaks.
+      </p>
+
+      <div className="hx-install-host">
+        {typeof window !== 'undefined' ? window.location.host : 'hexcast.xyz'}
+      </div>
+
+      <p className="hx-install-note">Works in any browser · add to home screen for offline cards</p>
     </div>
   );
 }

@@ -3,6 +3,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from '@clerk/nextjs';
 import type { Card as CardType } from '@hexcast/shared';
+import { CATEGORY_LABELS } from '@/lib/utils';
 import { Card } from './card';
 import { capture } from '@/lib/posthog';
 import { useReactions } from '@/stores/reactions';
@@ -22,6 +23,7 @@ export function CardFeed({ initialCards, personalized, initialUnseenCount }: Car
   const [error, setError] = useState(false);
   const [category, setCategory] = useState<string | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [filterOpen, setFilterOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showSwipeHint, setShowSwipeHint] = useState(false);
   const [totalUnseenCount, setTotalUnseenCount] = useState(initialUnseenCount ?? 0);
@@ -297,64 +299,46 @@ export function CardFeed({ initialCards, personalized, initialUnseenCount }: Car
     [visibleCards],
   );
   const showCaughtUp = personalized && visibleUnseenCount > 0 && visibleUnseenCount < visibleCards.length;
-  const progressPercent = visibleCards.length > 0 ? ((currentIndex + 1) / visibleCards.length) * 100 : 0;
 
   return (
-    <div className="fixed inset-0 flex flex-col" style={{ background: 'var(--bg-deep)' }}>
-      {/* ── Header ── */}
-      <header className="shrink-0 z-10 glass header-border">
-        <div className="flex items-center justify-between px-5 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2">
-          <h1
-            id="hexcast-logo"
-            className="text-sm font-semibold tracking-widest uppercase"
-            style={{ color: 'var(--text-primary)' }}
+    <div className="hx-shell fixed inset-0">
+      {/* ── App bar, 46px, constant across every view (s3a) ── */}
+      <header className="hx-appbar">
+        <span id="hexcast-logo" className="hx-wordmark">
+          hexcast<span>.</span>
+        </span>
+        <div className="hx-appbar-right">
+          {/* Label and count read as one control: what is filtered, and how many
+              cards that leaves. Replaces the old always-visible category strip —
+              the design puts category selection in a sheet (s3c) instead. */}
+          <button
+            className="hx-filter-chip"
+            onClick={() => setFilterOpen(true)}
+            aria-haspopup="dialog"
+            aria-label="Filter by category"
           >
-            <span className="text-glow-accent" style={{ color: 'var(--accent)' }}>[</span>
-            Hexcast
-            <span className="text-glow-accent" style={{ color: 'var(--accent)' }}>]</span>
-          </h1>
-          <div className="flex items-center gap-3">
-            {visibleCards.length > 0 && (
-              <span
-                className="text-[10px] tabular-nums tracking-wider"
-                style={{ color: 'var(--text-muted)' }}
-              >
-                {String(currentIndex + 1).padStart(2, '0')}/{String(visibleCards.length).padStart(2, '0')}
-              </span>
-            )}
-            <SignedIn>
-              <UserButton
-                appearance={{
-                  elements: {
-                    avatarBox: 'w-6 h-6',
-                  },
-                }}
-              />
-            </SignedIn>
-            <SignedOut>
-              <SignInButton mode="modal">
-                <button
-                  id="sign-in-button"
-                  className="btn-neon text-[10px] font-medium tracking-widest uppercase px-3 py-1.5"
-                  style={{
-                    color: 'var(--accent)',
-                    border: '1px solid var(--accent)',
-                  }}
-                >
-                  sign in
-                </button>
-              </SignInButton>
-            </SignedOut>
-          </div>
-        </div>
-        <CategoryFilter active={category} onChange={handleCategoryChange} />
-
-        {/* Scroll progress bar */}
-        <div className="scroll-progress">
-          <div
-            className="scroll-progress-bar"
-            style={{ width: `${progressPercent}%` }}
-          />
+            <span className="hx-filter-label">
+              {category ? (CATEGORY_LABELS[category] ?? category).toUpperCase() : 'ALL'}
+            </span>
+            <span className="hx-filter-sep" aria-hidden="true" />
+            <span className="hx-filter-count">{visibleCards.length}</span>
+          </button>
+          <SignedIn>
+            <UserButton
+              appearance={{
+                elements: {
+                  avatarBox: 'w-8 h-8 rounded-[10px]',
+                },
+              }}
+            />
+          </SignedIn>
+          <SignedOut>
+            <SignInButton mode="modal">
+              <button id="sign-in-button" className="hx-avatar" aria-label="Sign in">
+                IN
+              </button>
+            </SignInButton>
+          </SignedOut>
         </div>
       </header>
 
@@ -362,9 +346,9 @@ export function CardFeed({ initialCards, personalized, initialUnseenCount }: Car
       {refreshing && (
         <div
           className="shrink-0 flex items-center justify-center py-2"
-          style={{ background: 'var(--bg-surface)' }}
+          style={{ background: 'var(--surface)' }}
         >
-          <span className="text-[10px] tracking-widest uppercase cursor-blink text-glow-accent" style={{ color: 'var(--accent)' }}>
+          <span className="text-[10px] tracking-widest uppercase" style={{ color: 'var(--link)' }}>
             refreshing
           </span>
         </div>
@@ -373,7 +357,7 @@ export function CardFeed({ initialCards, personalized, initialUnseenCount }: Car
       {/* ── Card snap-scroll area ── */}
       <div
         ref={containerRef}
-        className="snap-container flex-1 min-h-0"
+        className="hx-feed snap-container flex-1 min-h-0"
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
@@ -384,37 +368,37 @@ export function CardFeed({ initialCards, personalized, initialUnseenCount }: Car
               <div className="snap-item h-full flex items-center justify-center">
                 <div className="text-center space-y-4 px-8">
                   <div
-                    className="text-sm font-semibold tracking-widest uppercase text-glow-green"
+                    className="text-sm font-semibold tracking-widest uppercase"
                     style={{ color: 'var(--accent-green)' }}
                   >
                     [all caught up]
                   </div>
                   <div
                     className="text-[10px] tracking-wider uppercase"
-                    style={{ color: 'var(--text-muted)' }}
+                    style={{ color: 'var(--ink-dim)' }}
                   >
                     you&apos;ve seen everything above — older cards below
                   </div>
                   <div className="flex items-center gap-3 mt-4 justify-center">
                     <div className="caught-up-line w-16" />
-                    <span className="text-[9px] tracking-widest uppercase" style={{ color: 'var(--text-muted)' }}>archive</span>
+                    <span className="text-[9px] tracking-widest uppercase" style={{ color: 'var(--ink-dim)' }}>archive</span>
                     <div className="caught-up-line w-16" />
                   </div>
                 </div>
               </div>
             )}
             <div data-index={idx} className="snap-item h-full">
-              <Card card={card} />
+              <Card card={card} position={{ index: idx + 1, total: visibleCards.length }} />
               {/* Swipe hint on first card */}
               {idx === 0 && showSwipeHint && (
                 <div
                   className="absolute bottom-20 left-0 right-0 flex flex-col items-center gap-1 animate-in"
                   style={{ pointerEvents: 'none' }}
                 >
-                  <span className="text-[10px] tracking-widest uppercase" style={{ color: 'var(--text-muted)' }}>
+                  <span className="text-[10px] tracking-widest uppercase" style={{ color: 'var(--ink-dim)' }}>
                     swipe up for more
                   </span>
-                  <span className="text-lg animate-in" style={{ color: 'var(--text-muted)', animationDelay: '0.3s' }}>
+                  <span className="text-lg animate-in" style={{ color: 'var(--ink-dim)', animationDelay: '0.3s' }}>
                     ↑
                   </span>
                 </div>
@@ -432,7 +416,7 @@ export function CardFeed({ initialCards, personalized, initialUnseenCount }: Car
         {error && !loading && (
           <div className="snap-item h-full flex items-center justify-center">
             <div className="text-center space-y-3">
-              <div className="text-[11px] tracking-widest uppercase text-glow-red" style={{ color: 'var(--accent-red)' }}>
+              <div className="text-[11px] tracking-widest uppercase" style={{ color: '#a3342c' }}>
                 [error] failed to load cards
               </div>
               <button
@@ -449,10 +433,10 @@ export function CardFeed({ initialCards, personalized, initialUnseenCount }: Car
         {!hasMore && visibleCards.length > 0 && (
           <div className="snap-item h-full flex items-center justify-center">
             <div className="text-center space-y-2">
-              <div className="text-sm font-medium tracking-widest uppercase" style={{ color: 'var(--text-secondary)' }}>
+              <div className="text-sm font-medium tracking-widest uppercase" style={{ color: 'var(--ink)' }}>
                 [end of feed]
               </div>
-              <div className="text-[10px] tracking-wider uppercase" style={{ color: 'var(--text-muted)' }}>
+              <div className="text-[10px] tracking-wider uppercase" style={{ color: 'var(--ink-dim)' }}>
                 no more cards to show
               </div>
             </div>
@@ -462,10 +446,10 @@ export function CardFeed({ initialCards, personalized, initialUnseenCount }: Car
         {!loading && !error && visibleCards.length === 0 && (
           <div className="h-full flex items-center justify-center">
             <div className="text-center space-y-2">
-              <div className="text-[11px] tracking-widest uppercase" style={{ color: 'var(--text-muted)' }}>
+              <div className="text-[11px] tracking-widest uppercase" style={{ color: 'var(--ink-dim)' }}>
                 [no cards found]
               </div>
-              <div className="text-[10px] tracking-wider" style={{ color: 'var(--text-muted)' }}>
+              <div className="text-[10px] tracking-wider" style={{ color: 'var(--ink-dim)' }}>
                 {category ? 'try removing the category filter' : 'check back later for new intel'}
               </div>
             </div>
@@ -473,17 +457,46 @@ export function CardFeed({ initialCards, personalized, initialUnseenCount }: Car
         )}
       </div>
 
+      {/* Category filter. The design moves this out of a permanent strip and into a
+          sheet (s3c) so the app bar stays at 46px and the card gets the height.
+          This is the existing filter mounted in that position — the sheet's own
+          layout is not built to s3c yet. */}
+      {filterOpen && (
+        <div
+          className="hx-sheet-scrim"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Filter by category"
+          onClick={() => setFilterOpen(false)}
+        >
+          <div className="hx-sheet-panel" onClick={(e) => e.stopPropagation()}>
+            <div className="hx-sheet-head">
+              <span>FILTER</span>
+              <button onClick={() => setFilterOpen(false)} aria-label="Close filter">
+                CLOSE
+              </button>
+            </div>
+            <CategoryFilter
+              active={category}
+              onChange={(cat) => {
+                handleCategoryChange(cat);
+                setFilterOpen(false);
+              }}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Scroll-to-top button */}
       {currentIndex > 2 && (
         <button
           onClick={scrollToTop}
-          className="fixed z-30 w-9 h-9 flex items-center justify-center text-[13px] font-medium animate-fade-in btn-neon"
+          className="hx-totop fixed z-30 flex items-center justify-center animate-fade-in"
           style={{
             right: '16px',
             bottom: 'calc(64px + max(0.5rem, env(safe-area-inset-bottom)))',
-            background: 'var(--bg-elevated)',
-            border: '1px solid var(--border-medium)',
-            color: 'var(--text-muted)',
+            background: 'var(--ink)',
+            color: 'var(--surface)',
             boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
           }}
         >
@@ -508,10 +521,10 @@ function CardSkeleton() {
         </div>
       </div>
       <div className="flex-1 flex flex-col justify-center min-h-0 py-6">
-        <div className="flex items-center gap-2 mb-4" style={{ color: 'var(--text-muted)' }}>
-          <div className="h-px flex-1" style={{ background: 'var(--border-medium)' }} />
+        <div className="flex items-center gap-2 mb-4" style={{ color: 'var(--ink-dim)' }}>
+          <div className="h-px flex-1" style={{ background: 'var(--line)' }} />
           <span className="text-[9px] tracking-widest uppercase">intel</span>
-          <div className="h-px flex-1" style={{ background: 'var(--border-medium)' }} />
+          <div className="h-px flex-1" style={{ background: 'var(--line)' }} />
         </div>
         <div className="space-y-2 mb-4">
           <div className="skeleton h-6 w-full" style={{ opacity: 0.3 }} />
@@ -523,7 +536,7 @@ function CardSkeleton() {
           <div className="skeleton h-4 w-2/3" style={{ opacity: 0.15 }} />
         </div>
       </div>
-      <div className="shrink-0 pt-4" style={{ borderTop: '1px solid var(--border-medium)' }}>
+      <div className="shrink-0 pt-4" style={{ borderTop: '1px solid var(--line)' }}>
         <div className="skeleton h-9 w-32" style={{ opacity: 0.2 }} />
         <div className="flex items-center gap-4 mt-3 pb-14">
           <div className="skeleton h-4 w-14" style={{ opacity: 0.15 }} />
@@ -567,8 +580,8 @@ function CategoryFilter({ active, onChange }: { active: string | null; onChange:
             className={`cat-pill whitespace-nowrap px-2.5 py-1 text-[10px] font-medium tracking-widest uppercase ${isActive ? 'cat-pill-active' : ''}`}
             style={{
               background: isActive ? 'var(--accent)' : 'transparent',
-              color: isActive ? '#fff' : 'var(--text-muted)',
-              border: `1px solid ${isActive ? 'var(--accent)' : 'var(--border-subtle)'}`,
+              color: isActive ? 'var(--surface)' : 'var(--ink-dim)',
+              border: `1px solid ${isActive ? 'var(--ink)' : 'var(--line)'}`,
             }}
           >
             {labels[cat] ?? cat}
