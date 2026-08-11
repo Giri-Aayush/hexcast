@@ -21,6 +21,12 @@ web/public/swe-worker-*.js
 .agents/
 .claude/
 
+# Clerk keyless dev credentials. In the ROOT gitignore on purpose: this same rule
+# lived in web/.gitignore for a while, which meant it only applied on branches that
+# had that file — so the secret was stageable on every other branch. An ignore rule
+# guarding a secret has to be branch-independent.
+.clerk/
+
 # Internal docs (not shipped) — kept on disk, never pushed.
 # README.md is the only markdown that belongs on GitHub.
 PD.md
