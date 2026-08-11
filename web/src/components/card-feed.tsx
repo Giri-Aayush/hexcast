@@ -369,7 +369,7 @@ export function CardFeed({ initialCards, personalized, initialUnseenCount }: Car
                 <div className="text-center space-y-4 px-8">
                   <div
                     className="text-sm font-semibold tracking-widest uppercase"
-                    style={{ color: 'var(--accent-green)' }}
+                    style={{ color: '#2c7a5c' }}
                   >
                     [all caught up]
                   </div>
@@ -422,7 +422,7 @@ export function CardFeed({ initialCards, personalized, initialUnseenCount }: Car
               <button
                 onClick={loadMore}
                 className="btn-cta px-4 py-2.5 text-[10px] font-medium tracking-widest uppercase"
-                style={{ background: 'var(--accent)', color: '#fff' }}
+                style={{ background: 'var(--ink)', color: 'var(--surface)', borderRadius: 'var(--radius-control)' }}
               >
                 [retry]
               </button>
@@ -579,7 +579,7 @@ function CategoryFilter({ active, onChange }: { active: string | null; onChange:
             }}
             className={`cat-pill whitespace-nowrap px-2.5 py-1 text-[10px] font-medium tracking-widest uppercase ${isActive ? 'cat-pill-active' : ''}`}
             style={{
-              background: isActive ? 'var(--accent)' : 'transparent',
+              background: isActive ? 'var(--ink)' : 'transparent',
               color: isActive ? 'var(--surface)' : 'var(--ink-dim)',
               border: `1px solid ${isActive ? 'var(--ink)' : 'var(--line)'}`,
             }}

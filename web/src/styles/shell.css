@@ -745,3 +745,177 @@
   letter-spacing: 0.14em;
   color: var(--ink-faint);
 }
+
+/* ── Permalink ────────────────────────────────────────────────────────── */
+.hx-perma {
+  min-height: 100dvh;
+  background: var(--ground);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 10px 24px;
+}
+
+.hx-perma-head {
+  width: 100%;
+  max-width: 660px;
+  height: 46px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px;
+}
+
+.hx-perma-back {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-control);
+  background: rgba(16, 16, 20, 0.06);
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Balances the back button so the wordmark sits centred. */
+.hx-perma-spacer { width: 32px; }
+
+.hx-perma-card {
+  width: 100%;
+  max-width: 660px;
+}
+
+/* The permalink card grows with its content instead of filling a viewport, so the
+   spacer has nothing to absorb here — natural height, CTA at the foot. */
+.hx-perma-card .hx-spacer { min-height: 20px; }
+
+.hx-perma-cta {
+  display: flex;
+  gap: 10px;
+  padding: 0 20px 20px;
+}
+
+/* ── Feedback widget ──────────────────────────────────────────────────── */
+.hx-fb-trigger {
+  position: fixed;
+  z-index: 40;
+  right: 16px;
+  bottom: calc(78px + max(0px, env(safe-area-inset-bottom)));
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  font: 500 9.5px/1 var(--font-mono);
+  letter-spacing: 0.14em;
+  color: var(--ink-dim);
+  cursor: pointer;
+}
+
+.hx-fb-trigger:hover { color: var(--ink); }
+
+.hx-fb-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(16, 16, 20, 0.32);
+}
+
+.hx-fb-wrap {
+  position: fixed;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  padding: 0 14px;
+  bottom: calc(78px + max(0px, env(safe-area-inset-bottom)));
+}
+
+.hx-fb-panel {
+  margin: 0 auto;
+  max-width: 480px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  padding: 18px 18px 16px;
+}
+
+.hx-fb-input {
+  width: 100%;
+  resize: none;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: #fff;
+  color: var(--ink);
+  font: 400 14px/1.55 var(--font-sans);
+  padding: 10px 12px;
+  outline: none;
+}
+
+.hx-fb-input:focus-visible { border-color: var(--ink); }
+
+.hx-fb-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+}
+
+.hx-fb-foot > span {
+  font: 400 10px/1 var(--font-mono);
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.hx-fb-foot .hx-btn-ink:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* Mobile install variants share the desktop panel, stretched across the viewport
+   and lifted above the nav pill. */
+.hx-install-mobile {
+  left: 16px;
+  right: 16px;
+  width: auto;
+}
+
+/* Numbered because the iOS flow genuinely is a sequence. */
+.hx-install-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.hx-install-step {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.hx-install-num {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  background: var(--ink);
+  color: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 500 11px/1 var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.hx-install-step > div > div {
+  font: 500 13.5px/1.3 var(--font-sans);
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.hx-install-step p {
+  margin: 3px 0 0;
+  font: 400 12px/1.45 var(--font-sans);
+  color: var(--ink-dim);
+}

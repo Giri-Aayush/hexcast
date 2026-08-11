@@ -177,20 +177,9 @@
   --cat-control: rgba(58, 42, 8, 0.06);
 }
 
-/**
- * Retire the previous dark system's ground and its two overlays. The old scanline
- * sat at z-index 9999 over the entire page; over a light UI it reads as banding and
- * it covers even dialogs. Kept here rather than edited out of globals.css so that
- * block stays one intact unit to delete once the last component migrates.
- */
 body {
   background: var(--ground);
   font-family: var(--font-sans);
   color: var(--ink);
-}
-
-body::before,
-body::after {
-  content: none;
-  display: none;
+  -webkit-font-smoothing: antialiased;
 }

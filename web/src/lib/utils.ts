@@ -32,19 +32,6 @@ export const CATEGORY_LABELS: Record<string, string> = {
   SECURITY: 'Security',
 };
 
-export const CATEGORY_BADGE_CLASS: Record<string, string> = {
-  RESEARCH: 'badge-research',
-  EIP_ERC: 'badge-eip',
-  PROTOCOL_CALLS: 'badge-protocol',
-  GOVERNANCE: 'badge-governance',
-  UPGRADE: 'badge-upgrade',
-  ANNOUNCEMENT: 'badge-announcement',
-  METRICS: 'badge-metrics',
-  SECURITY: 'badge-security',
-};
-
-// Keep old export name for backward compat
-export const CATEGORY_COLORS = CATEGORY_BADGE_CLASS;
 
 /**
  * Split a summary into plain runs and "figures" — the identifiers and quantities the

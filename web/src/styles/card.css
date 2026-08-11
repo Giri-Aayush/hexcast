@@ -96,6 +96,9 @@
   font: 400 17px/1.66 var(--font-sans);
   color: var(--cat-body);
   text-wrap: pretty;
+  /* Summaries carry unbreakable tokens — a bare 0x address is 42 characters with no
+     break opportunity — and without this they clip at the card edge. */
+  overflow-wrap: break-word;
 }
 
 /* Identifiers and figures inside the summary step into mono and darken. This is the

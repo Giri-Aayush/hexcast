@@ -105,7 +105,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             rel="stylesheet"
           />
         </head>
-        <body suppressHydrationWarning className="antialiased overflow-hidden" style={{ color: 'var(--text-primary)' }}>
+        <body suppressHydrationWarning className="antialiased overflow-hidden" >
           <PostHogProvider>
             {children}
             <BottomNav />
