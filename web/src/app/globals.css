@@ -1,88 +1,18 @@
 @import "tailwindcss";
 
-/* The imported design system. Loaded alongside the existing tokens rather than
-   replacing them, so components can migrate one at a time instead of the whole feed
-   changing in a single commit. The old "Neon Intelligence Terminal" block below is
-   still what every current component reads; it goes when the last one moves over. */
+/* The design system, imported from the Claude Design project — see the header
+   comments in each file. design-system.css owns tokens and the body ground;
+   card.css owns the card; shell.css owns everything around it. */
 @import "../styles/design-system.css";
 @import "../styles/card.css";
 @import "../styles/shell.css";
 
-/* ── Design System: Neon Intelligence Terminal (being replaced) ─── */
-:root {
-  --bg-deep: #06060a;
-  --bg-surface: #0c0c14;
-  --bg-elevated: #14141e;
-  --bg-card: #0a0a12;
+/* ── App utilities ─────────────────────────────────────────────────────
+   Everything below is behaviour, not palette: scroll physics, animation,
+   loading states. The old "Neon Intelligence Terminal" block that used to
+   live here is gone — no component reads it any more. */
 
-  --border-subtle: rgba(255, 255, 255, 0.05);
-  --border-medium: rgba(255, 255, 255, 0.08);
-  --border-strong: rgba(255, 255, 255, 0.14);
-
-  --text-primary: #ededf0;
-  --text-secondary: #8a8a9a;
-  --text-muted: #484858;
-
-  --accent: #3b82f6;
-  --accent-dim: rgba(59, 130, 246, 0.1);
-  --accent-glow: rgba(59, 130, 246, 0.25);
-  --accent-green: #22c55e;
-  --accent-green-glow: rgba(34, 197, 94, 0.25);
-  --accent-red: #ef4444;
-  --accent-red-glow: rgba(239, 68, 68, 0.25);
-  --accent-amber: #f59e0b;
-
-  --font-mono: 'IBM Plex Mono', 'JetBrains Mono', 'Fira Code', monospace;
-
-  /* Category glow colors */
-  --glow-research: rgba(99, 102, 241, 0.15);
-  --glow-eip: rgba(245, 158, 11, 0.15);
-  --glow-protocol: rgba(168, 85, 247, 0.15);
-  --glow-governance: rgba(59, 130, 246, 0.15);
-  --glow-upgrade: rgba(34, 197, 94, 0.15);
-  --glow-announcement: rgba(244, 114, 182, 0.15);
-  --glow-metrics: rgba(251, 146, 60, 0.15);
-  --glow-security: rgba(239, 68, 68, 0.15);
-}
-
-/* ── Base ───────────────────────────────────────────────────────── */
-body {
-  background: var(--bg-deep);
-  font-family: var(--font-mono);
-  -webkit-font-smoothing: antialiased;
-}
-
-/* Scanline + grain overlay */
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 9999;
-  opacity: 0.03;
-  background:
-    repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 2px,
-      rgba(255, 255, 255, 0.04) 2px,
-      rgba(255, 255, 255, 0.04) 4px
-    );
-}
-
-/* Subtle dot grid background for depth */
-body::after {
-  content: '';
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-  opacity: 0.025;
-  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.8) 1px, transparent 1px);
-  background-size: 24px 24px;
-}
-
-/* ── Vertical snap scroll ──────────────────────────────────────── */
+/* Vertical snap scroll */
 .snap-container {
   scroll-snap-type: y mandatory;
   overflow-y: scroll;
@@ -97,7 +27,6 @@ body::after {
   scroll-snap-stop: always;
 }
 
-/* ── Scrollbar hide ────────────────────────────────────────────── */
 .scrollbar-hide {
   scrollbar-width: none;
 }
@@ -105,304 +34,83 @@ body::after {
   display: none;
 }
 
-/* ── Category badge colors (neon palette) ──────────────────────── */
-.badge-research {
-  background: rgba(99, 102, 241, 0.1);
-  color: #818cf8;
-  border: 1px solid rgba(99, 102, 241, 0.25);
-  box-shadow: 0 0 12px rgba(99, 102, 241, 0.08);
-}
-.badge-eip {
-  background: rgba(245, 158, 11, 0.1);
-  color: #fbbf24;
-  border: 1px solid rgba(245, 158, 11, 0.25);
-  box-shadow: 0 0 12px rgba(245, 158, 11, 0.08);
-}
-.badge-protocol {
-  background: rgba(168, 85, 247, 0.1);
-  color: #c084fc;
-  border: 1px solid rgba(168, 85, 247, 0.25);
-  box-shadow: 0 0 12px rgba(168, 85, 247, 0.08);
-}
-.badge-governance {
-  background: rgba(59, 130, 246, 0.1);
-  color: #60a5fa;
-  border: 1px solid rgba(59, 130, 246, 0.25);
-  box-shadow: 0 0 12px rgba(59, 130, 246, 0.08);
-}
-.badge-upgrade {
-  background: rgba(34, 197, 94, 0.1);
-  color: #4ade80;
-  border: 1px solid rgba(34, 197, 94, 0.25);
-  box-shadow: 0 0 12px rgba(34, 197, 94, 0.08);
-}
-.badge-announcement {
-  background: rgba(244, 114, 182, 0.1);
-  color: #f472b6;
-  border: 1px solid rgba(244, 114, 182, 0.25);
-  box-shadow: 0 0 12px rgba(244, 114, 182, 0.08);
-}
-.badge-metrics {
-  background: rgba(251, 146, 60, 0.1);
-  color: #fb923c;
-  border: 1px solid rgba(251, 146, 60, 0.25);
-  box-shadow: 0 0 12px rgba(251, 146, 60, 0.08);
-}
-.badge-security {
-  background: rgba(239, 68, 68, 0.1);
-  color: #f87171;
-  border: 1px solid rgba(239, 68, 68, 0.25);
-  box-shadow: 0 0 12px rgba(239, 68, 68, 0.08);
-}
-
-/* ── Card ambient glow (set by data-category attribute) ────────── */
-.card-ambient {
-  position: relative;
-}
-.card-ambient::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 180px;
-  pointer-events: none;
-  opacity: 0.6;
-  transition: opacity 0.5s ease;
-  z-index: 0;
-}
-.card-ambient[data-category="RESEARCH"]::before {
-  background: radial-gradient(ellipse at 20% 0%, var(--glow-research) 0%, transparent 70%);
-}
-.card-ambient[data-category="EIP_ERC"]::before {
-  background: radial-gradient(ellipse at 20% 0%, var(--glow-eip) 0%, transparent 70%);
-}
-.card-ambient[data-category="PROTOCOL_CALLS"]::before {
-  background: radial-gradient(ellipse at 20% 0%, var(--glow-protocol) 0%, transparent 70%);
-}
-.card-ambient[data-category="GOVERNANCE"]::before {
-  background: radial-gradient(ellipse at 20% 0%, var(--glow-governance) 0%, transparent 70%);
-}
-.card-ambient[data-category="UPGRADE"]::before {
-  background: radial-gradient(ellipse at 20% 0%, var(--glow-upgrade) 0%, transparent 70%);
-}
-.card-ambient[data-category="ANNOUNCEMENT"]::before {
-  background: radial-gradient(ellipse at 20% 0%, var(--glow-announcement) 0%, transparent 70%);
-}
-.card-ambient[data-category="METRICS"]::before {
-  background: radial-gradient(ellipse at 20% 0%, var(--glow-metrics) 0%, transparent 70%);
-}
-.card-ambient[data-category="SECURITY"]::before {
-  background: radial-gradient(ellipse at 20% 0%, var(--glow-security) 0%, transparent 70%);
-}
-
-/* ── Unseen card pulse indicator ───────────────────────────────── */
-.unseen-indicator::after {
-  content: '';
-  position: absolute;
-  top: 36px;
-  right: 31px;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--accent-green);
-  box-shadow: 0 0 8px var(--accent-green-glow), 0 0 16px rgba(34, 197, 94, 0.1);
-  animation: unseenPulse 2s ease-in-out infinite;
-}
-
-/* ── Scroll progress bar ───────────────────────────────────────── */
-.scroll-progress {
-  height: 2px;
-  background: var(--border-subtle);
-  overflow: hidden;
-}
-.scroll-progress-bar {
-  height: 100%;
-  background: linear-gradient(90deg, var(--accent), #818cf8);
-  box-shadow: 0 0 8px var(--accent-glow);
-  transition: width 0.3s ease-out;
-}
-
-/* ── Mobile tap fix ─────────────────────────────────────────────
-   Inside a scroll-snap container, even tiny finger movement during
-   a tap gets consumed as a scroll gesture, preventing click events.
-   Setting touch-action: none on interactive areas stops the scroll
-   container from stealing touches. iOS also needs cursor:pointer
-   on non-anchor elements for click synthesis.
-   ────────────────────────────────────────────────────────────── */
+/* Inside a scroll-snap container, tiny finger movement during a tap gets consumed
+   as a scroll gesture, preventing click events. touch-action: none on interactive
+   areas stops the container stealing touches; iOS also needs cursor:pointer on
+   non-anchor elements for click synthesis. */
+.hx-actions,
 .card-actions {
   touch-action: none;
 }
-.card-actions button,
-.card-actions a,
-button.btn-neon,
-button.reaction-btn {
-  cursor: pointer;
+.hx-actions button {
   -webkit-tap-highlight-color: transparent;
   touch-action: none;
 }
 
-/* ── Neon button styles ────────────────────────────────────────── */
-.btn-neon {
-  transition: all 0.15s ease;
-}
-.btn-neon:hover {
-  text-shadow: 0 0 8px currentColor;
-}
-.btn-neon:active {
-  transform: scale(0.96);
-}
-
-.btn-cta {
-  transition: all 0.2s ease;
-}
-.btn-cta:hover {
-  box-shadow: 0 0 20px var(--accent-glow), 0 4px 16px rgba(59, 130, 246, 0.15);
-}
-.btn-cta:active {
-  transform: scale(0.97);
-}
-
-/* ── Reaction bounce ───────────────────────────────────────────── */
-.reaction-btn {
-  transition: all 0.15s ease;
-}
-.reaction-btn:active {
-  transform: scale(0.9);
-}
-.reaction-pop {
-  animation: reactionPop 0.3s ease-out;
-}
-
-/* ── Category pill (header filter) ─────────────────────────────── */
+/* Category pill row in the filter sheet */
 .cat-pill {
-  transition: all 0.2s ease;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 }
 .cat-pill-active {
-  box-shadow: 0 0 12px var(--accent-glow), 0 0 4px var(--accent-dim);
+  /* Active state carries itself through ink-on-ground; no glow in this system. */
 }
 
-/* ── Driver.js Spotlight Tour ──────────────────────────────────── */
+/* CTA fallback used by the load-more error state */
+.btn-cta {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
 
-/* Highlighted element glow ring — makes the spotlight visible on dark bg */
+/* "You're caught up" divider in the personalized feed */
+.caught-up-line {
+  height: 1px;
+  background: var(--line-strong);
+}
+
+/* Loading skeleton */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(16, 16, 20, 0.05) 25%,
+    rgba(16, 16, 20, 0.1) 50%,
+    rgba(16, 16, 20, 0.05) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+
+/* ── Driver.js spotlight tour ── */
 .driver-active-element {
-  outline: 1.5px solid rgba(59, 130, 246, 0.6) !important;
-  outline-offset: 6px;
-  box-shadow:
-    0 0 24px rgba(59, 130, 246, 0.15),
-    0 0 48px rgba(59, 130, 246, 0.06) !important;
-  border-radius: 4px;
+  outline: 2px solid var(--link) !important;
+  outline-offset: 3px;
+  border-radius: var(--radius-control);
 }
 
-.hexcast-tour-popover.driver-popover {
-  background: var(--bg-elevated);
-  border: 1px solid rgba(59, 130, 246, 0.2);
-  border-radius: 6px;
-  font-family: 'IBM Plex Mono', 'JetBrains Mono', monospace;
-  color: var(--text-primary);
-  padding: 0;
-  box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.5),
-    0 0 1px rgba(59, 130, 246, 0.3),
-    0 0 20px rgba(59, 130, 246, 0.06);
-  max-width: 340px;
+.hexcast-tour-popover {
+  background: var(--surface) !important;
+  color: var(--ink) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: var(--radius-card) !important;
+  font-family: var(--font-sans) !important;
 }
 
-.hexcast-tour-popover .driver-popover-title {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--accent);
-  text-transform: uppercase;
-  letter-spacing: 0.15em;
-  padding: 14px 16px 0;
-  text-shadow: 0 0 10px rgba(59, 130, 246, 0.25);
+/* ── Animation ── */
+.animate-in {
+  animation: fadeInUp 0.35s ease both;
+}
+.animate-fade-in {
+  animation: fadeIn 0.25s ease both;
+}
+.animate-fade-out {
+  animation: fadeOut 0.25s ease both;
+}
+.animate-slide-up {
+  animation: slideUp 0.3s ease both;
 }
 
-.hexcast-tour-popover .driver-popover-description {
-  font-size: 11px;
-  color: var(--text-secondary);
-  line-height: 1.7;
-  padding: 8px 16px 0;
-  font-weight: 300;
-}
-
-.hexcast-tour-popover .driver-popover-progress-text {
-  font-size: 9px;
-  color: var(--text-muted);
-  letter-spacing: 0.15em;
-}
-
-.hexcast-tour-popover .driver-popover-footer {
-  padding: 12px 16px 14px;
-  border-top: 1px solid var(--border-subtle);
-  margin-top: 14px;
-}
-
-.hexcast-tour-popover .driver-popover-navigation-btns {
-  gap: 8px;
-}
-
-.hexcast-tour-popover .driver-popover-next-btn,
-.hexcast-tour-popover .driver-popover-prev-btn {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 9px;
-  font-weight: 500;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-  border: none;
-  border-radius: 2px;
-  padding: 6px 12px;
-  text-shadow: none;
-}
-
-.hexcast-tour-popover .driver-popover-next-btn,
-.hexcast-tour-popover .driver-popover-done-btn {
-  background: var(--accent);
-  color: #fff;
-}
-
-.hexcast-tour-popover .driver-popover-prev-btn {
-  background: transparent;
-  color: var(--text-muted);
-  border: 1px solid var(--border-medium);
-}
-
-.hexcast-tour-popover .driver-popover-close-btn {
-  color: var(--text-muted);
-}
-
-.hexcast-tour-popover .driver-popover-close-btn:hover {
-  color: var(--text-primary);
-}
-
-.hexcast-tour-popover .driver-popover-arrow-side-top {
-  border-bottom-color: var(--bg-elevated) !important;
-}
-
-.hexcast-tour-popover .driver-popover-arrow-side-bottom {
-  border-top-color: var(--bg-elevated) !important;
-}
-
-.hexcast-tour-popover .driver-popover-arrow-side-left {
-  border-right-color: var(--bg-elevated) !important;
-}
-
-.hexcast-tour-popover .driver-popover-arrow-side-right {
-  border-left-color: var(--bg-elevated) !important;
-}
-
-/* ── Animations ────────────────────────────────────────────────── */
 @keyframes fadeInUp {
   from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
-}
-@keyframes terminalBlink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0; }
-}
-@keyframes slideIn {
-  from { opacity: 0; transform: translateX(-8px); }
-  to { opacity: 1; transform: translateX(0); }
 }
 @keyframes fadeIn {
   from { opacity: 0; }
@@ -420,105 +128,13 @@ button.reaction-btn {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
 }
-@keyframes unseenPulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.5; transform: scale(1.4); }
-}
-@keyframes reactionPop {
-  0% { transform: scale(1); }
-  40% { transform: scale(1.25); }
-  100% { transform: scale(1); }
-}
-@keyframes glowPulse {
-  0%, 100% { opacity: 0.6; }
-  50% { opacity: 1; }
-}
-@keyframes borderGlow {
-  0%, 100% { border-color: rgba(59, 130, 246, 0.15); }
-  50% { border-color: rgba(59, 130, 246, 0.35); }
-}
-@keyframes countUp {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
-}
 
-.animate-in {
-  animation: fadeInUp 0.35s ease-out both;
-}
-.animate-slide {
-  animation: slideIn 0.3s ease-out both;
-}
-.animate-fade-in {
-  animation: fadeIn 0.2s ease-out both;
-}
-.animate-fade-out {
-  animation: fadeOut 0.2s ease-out both;
-}
-.animate-slide-up {
-  animation: slideUp 0.25s ease-out both;
-}
-.animate-delay-1 { animation-delay: 0.06s; }
-.animate-delay-2 { animation-delay: 0.12s; }
-.animate-delay-3 { animation-delay: 0.18s; }
-.animate-delay-4 { animation-delay: 0.24s; }
-
-/* Skeleton shimmer */
-.skeleton {
-  background: linear-gradient(90deg, var(--bg-card) 25%, var(--bg-elevated) 50%, var(--bg-card) 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s ease-in-out infinite;
-}
-
-/* Terminal cursor blink */
-.cursor-blink::after {
-  content: '_';
-  animation: terminalBlink 1s step-end infinite;
-  color: var(--accent);
-  margin-left: 1px;
-}
-
-/* ── Glow text utility ─────────────────────────────────────────── */
-.text-glow-accent {
-  text-shadow: 0 0 10px var(--accent-glow), 0 0 30px rgba(59, 130, 246, 0.08);
-}
-.text-glow-green {
-  text-shadow: 0 0 10px var(--accent-green-glow), 0 0 30px rgba(34, 197, 94, 0.08);
-}
-.text-glow-red {
-  text-shadow: 0 0 10px var(--accent-red-glow);
-}
-
-/* ── Glass morphism utility ────────────────────────────────────── */
-.glass {
-  background: rgba(8, 8, 12, 0.85);
-  backdrop-filter: blur(12px) saturate(1.2);
-  -webkit-backdrop-filter: blur(12px) saturate(1.2);
-}
-
-/* ── Active nav glow dot ───────────────────────────────────────── */
-.nav-glow-dot {
-  width: 3px;
-  height: 3px;
-  border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 6px var(--accent-glow), 0 0 12px rgba(59, 130, 246, 0.1);
-}
-
-/* ── "Caught up" divider animation ─────────────────────────────── */
-.caught-up-line {
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--accent-green), transparent);
-  animation: glowPulse 3s ease-in-out infinite;
-}
-
-/* ── Header border glow ────────────────────────────────────────── */
-.header-border {
-  border-bottom: 1px solid transparent;
-  border-image: linear-gradient(90deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.08) 20%,
-    var(--accent-dim) 50%,
-    rgba(255, 255, 255, 0.08) 80%,
-    transparent 100%
-  ) 1;
+@media (prefers-reduced-motion: reduce) {
+  .animate-in,
+  .animate-fade-in,
+  .animate-fade-out,
+  .animate-slide-up,
+  .skeleton {
+    animation: none;
+  }
 }

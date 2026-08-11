@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getCardById } from '@/lib/queries';
-import { CATEGORY_LABELS } from '@/lib/utils';
+import Link from 'next/link';
+import { CATEGORY_LABELS, extractDomain, relativeTime, splitFigures } from '@/lib/utils';
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -76,72 +77,54 @@ export default async function CardPage({ params }: Props) {
       type="application/ld+json"
       dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
     />
-    <main
-      className="min-h-screen flex flex-col items-center justify-center px-6 py-12"
-      style={{ background: 'var(--bg-deep)' }}
-    >
-      <div
-        className="w-full max-w-lg md:max-w-2xl"
-        style={{ border: '1px solid var(--border-medium)', background: 'var(--bg-surface)' }}
-      >
-        {/* Header */}
-        <div className="px-5 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-          <span
-            className="text-[10px] font-medium tracking-widest uppercase"
-            style={{ color: 'var(--text-muted)' }}
-          >
-            {categoryLabel}
-          </span>
-          <span
-            className="text-sm font-semibold tracking-widest uppercase"
-            style={{ color: 'var(--text-primary)' }}
-          >
-            <span style={{ color: 'var(--accent)' }}>[</span>
-            Hexcast
-            <span style={{ color: 'var(--accent)' }}>]</span>
-          </span>
-        </div>
+    {/* The permalink is what a shared link opens, so it is the card standing alone:
+        same construction as the feed — tinted surface, dither, badge — with the
+        actions replaced by "open the full feed". Server-rendered; no client state. */}
+    <main className="hx-perma">
+      <header className="hx-perma-head">
+        <Link href="/" aria-label="Back to feed" className="hx-perma-back">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M10 3L5 8l5 5" />
+          </svg>
+        </Link>
+        <span className="hx-wordmark">
+          hexcast<span>.</span>
+        </span>
+        <span className="hx-perma-spacer" aria-hidden="true" />
+      </header>
 
-        {/* Content */}
-        <div className="px-5 py-6">
-          <h1
-            className="text-xl leading-tight font-medium tracking-tight uppercase mb-4"
-            style={{ color: 'var(--text-primary)' }}
-          >
-            {card.headline}
-          </h1>
-          <p
-            className="text-[13px] leading-[1.8] font-light"
-            style={{ color: 'var(--text-secondary)' }}
-          >
-            {card.summary}
+      <article className="hx-card hx-perma-card" data-category={card.category}>
+        <div className="hx-dither" aria-hidden="true" />
+        <div className="hx-badge-row">
+          <span className="hx-badge">{categoryLabel.toUpperCase()}</span>
+        </div>
+        <div className="hx-body-block">
+          <h1 className="hx-headline">{card.headline}</h1>
+          <p className="hx-summary">
+            {splitFigures(card.summary).map((seg, i) =>
+              seg.figure ? (
+                <span key={i} className="hx-fig">
+                  {seg.text}
+                </span>
+              ) : (
+                seg.text
+              ),
+            )}
           </p>
         </div>
-
-        {/* CTA */}
-        <div className="px-5 py-4 flex items-center gap-4" style={{ borderTop: '1px solid var(--border-subtle)' }}>
-          <a
-            href={card.canonical_url}
-            className="inline-flex items-center gap-2 px-5 py-2.5 text-[11px] font-medium uppercase tracking-widest transition-all hover:brightness-110"
-            style={{ background: 'var(--accent)', color: '#fff' }}
-          >
-            Read source
-            <span className="text-[10px]">-&gt;</span>
-          </a>
-          <a
-            href="/"
-            className="text-[10px] font-medium tracking-widest uppercase transition-colors"
-            style={{ color: 'var(--text-muted)', border: '1px solid var(--border-medium)', padding: '8px 16px' }}
-          >
-            Browse feed
+        <div className="hx-spacer" />
+        <div className="hx-meta">
+          {extractDomain(card.canonical_url).toUpperCase()} · {relativeTime(card.published_at).toUpperCase()}
+        </div>
+        <div className="hx-perma-cta">
+          <Link href="/" className="hx-btn-ink" style={{ flex: 1, justifyContent: 'center' }}>
+            Open the full feed
+          </Link>
+          <a href={card.canonical_url} target="_blank" rel="noopener noreferrer" className="hx-btn-quiet">
+            Source
           </a>
         </div>
-      </div>
-
-      {/* Footer branding */}
-      <p className="mt-6 text-[10px] tracking-wider uppercase" style={{ color: 'var(--text-muted)' }}>
-        Ethereum ecosystem intelligence
-      </p>
+      </article>
     </main>
     </>
   );

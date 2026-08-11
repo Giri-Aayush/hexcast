@@ -2,16 +2,18 @@ import { ImageResponse } from 'next/og';
 import { NextRequest } from 'next/server';
 import { getCardById } from '@/lib/queries';
 
-const CATEGORY_COLORS: Record<string, { bg: string; text: string; border: string }> = {
-  RESEARCH: { bg: 'rgba(99, 102, 241, 0.12)', text: '#818cf8', border: 'rgba(99, 102, 241, 0.3)' },
-  EIP_ERC: { bg: 'rgba(245, 158, 11, 0.12)', text: '#fbbf24', border: 'rgba(245, 158, 11, 0.3)' },
-  PROTOCOL_CALLS: { bg: 'rgba(168, 85, 247, 0.12)', text: '#c084fc', border: 'rgba(168, 85, 247, 0.3)' },
-  GOVERNANCE: { bg: 'rgba(59, 130, 246, 0.12)', text: '#60a5fa', border: 'rgba(59, 130, 246, 0.3)' },
-  UPGRADE: { bg: 'rgba(34, 197, 94, 0.12)', text: '#4ade80', border: 'rgba(34, 197, 94, 0.3)' },
-  ANNOUNCEMENT: { bg: 'rgba(244, 114, 182, 0.12)', text: '#f472b6', border: 'rgba(244, 114, 182, 0.3)' },
-  METRICS: { bg: 'rgba(251, 146, 60, 0.12)', text: '#fb923c', border: 'rgba(251, 146, 60, 0.3)' },
-  SECURITY: { bg: 'rgba(239, 68, 68, 0.12)', text: '#f87171', border: 'rgba(239, 68, 68, 0.3)' },
-};
+// The t3 palette: each category's card surface and its saturated badge hue,
+// mirroring design-system.css so a shared card looks like the card it links to.
+const CATEGORY_COLORS: Record<string, { surface: string; badge: string; badgeInk: string; body: string; meta: string }> = {
+  RESEARCH: { surface: '#eef0f7', badge: '#4a5f96', badgeInk: '#eff1f8', body: '#242a3c', meta: '#5f6b8a' },
+  EIP_ERC: { surface: '#e8eefb', badge: '#1f4fa8', badgeInk: '#eef3fd', body: '#25293a', meta: '#55617a' },
+  PROTOCOL_CALLS: { surface: '#e6f2f4', badge: '#16646e', badgeInk: '#e8f6f8', body: '#1f2b2e', meta: '#4f6f75' },
+  GOVERNANCE: { surface: '#f0edfa', badge: '#6149b2', badgeInk: '#f2eefd', body: '#272138', meta: '#5e5286' },
+  UPGRADE: { surface: '#e8f3ec', badge: '#2c7a5c', badgeInk: '#eafaf1', body: '#1f2c26', meta: '#4e6f5f' },
+  ANNOUNCEMENT: { surface: '#f0f0f1', badge: '#3f3f46', badgeInk: '#f4f4f5', body: '#26262b', meta: '#5c5c64' },
+  METRICS: { surface: '#f8f1e4', badge: '#8a6516', badgeInk: '#fdf5e8', body: '#302713', meta: '#6f5a2e' },
+  SECURITY: { surface: '#f7e9e7', badge: '#a3342c', badgeInk: '#fdeeec', body: '#33201e', meta: '#7d5450' },
+}
 
 const CATEGORY_LABELS: Record<string, string> = {
   RESEARCH: 'Research',
@@ -58,7 +60,7 @@ export async function GET(request: NextRequest) {
             height: '100%',
             display: 'flex',
             flexDirection: 'column',
-            background: '#08080c',
+            background: colors.surface,
             fontFamily: 'monospace',
             padding: '48px 56px',
           }}
@@ -73,9 +75,9 @@ export async function GET(request: NextRequest) {
                 fontWeight: 500,
                 letterSpacing: '0.12em',
                 textTransform: 'uppercase' as const,
-                color: colors.text,
-                background: colors.bg,
-                border: `1px solid ${colors.border}`,
+                color: colors.badgeInk,
+                background: colors.badge,
+                borderRadius: 13,
               }}
             >
               {categoryLabel}
@@ -85,7 +87,7 @@ export async function GET(request: NextRequest) {
                 fontSize: '13px',
                 letterSpacing: '0.1em',
                 textTransform: 'uppercase' as const,
-                color: '#4a4a5a',
+                color: colors.meta,
               }}
             >
               {domain}
@@ -101,18 +103,18 @@ export async function GET(request: NextRequest) {
               marginTop: '36px',
             }}
           >
-            <div style={{ height: '1px', flex: 1, background: 'rgba(255,255,255,0.1)' }} />
+            <div style={{ height: '1px', flex: 1, background: 'rgba(16,16,20,0.14)' }} />
             <span
               style={{
                 fontSize: '11px',
                 letterSpacing: '0.15em',
                 textTransform: 'uppercase' as const,
-                color: '#4a4a5a',
+                color: colors.meta,
               }}
             >
               intel
             </span>
-            <div style={{ height: '1px', flex: 1, background: 'rgba(255,255,255,0.1)' }} />
+            <div style={{ height: '1px', flex: 1, background: 'rgba(16,16,20,0.14)' }} />
           </div>
 
           {/* Headline */}
@@ -124,7 +126,7 @@ export async function GET(request: NextRequest) {
               lineHeight: 1.25,
               letterSpacing: '-0.01em',
               textTransform: 'uppercase' as const,
-              color: '#e8e8ec',
+              color: '#101014',
             }}
           >
             {card.headline}
@@ -137,7 +139,7 @@ export async function GET(request: NextRequest) {
               fontSize: '17px',
               lineHeight: 1.7,
               fontWeight: 400,
-              color: '#8a8a9a',
+              color: colors.body,
             }}
           >
             {summary}
@@ -151,7 +153,7 @@ export async function GET(request: NextRequest) {
               alignItems: 'center',
               justifyContent: 'space-between',
               paddingTop: '24px',
-              borderTop: '1px solid rgba(255,255,255,0.1)',
+              borderTop: '1px solid rgba(16,16,20,0.12)',
             }}
           >
             <div
@@ -161,18 +163,18 @@ export async function GET(request: NextRequest) {
                 fontWeight: 700,
                 letterSpacing: '0.12em',
                 textTransform: 'uppercase' as const,
-                color: '#e8e8ec',
+                color: '#101014',
               }}
             >
-              <span style={{ color: '#3b82f6' }}>[</span>
+              
               Hexcast
-              <span style={{ color: '#3b82f6' }}>]</span>
+              
             </div>
             <span
               style={{
                 fontSize: '13px',
                 letterSpacing: '0.08em',
-                color: '#4a4a5a',
+                color: colors.meta,
               }}
             >
               Ethereum ecosystem intelligence

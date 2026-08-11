@@ -117,35 +117,35 @@ export default function AdminPage() {
   if (!isLoaded) return null;
   if (!isSignedIn) {
     return (
-      <main className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-deep)' }}>
-        <p style={{ color: 'var(--text-muted)' }}>Sign in required</p>
+      <main className="min-h-screen flex items-center justify-center" style={{ background: 'var(--ground)' }}>
+        <p style={{ color: 'var(--ink-dim)' }}>Sign in required</p>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen overflow-auto pb-24" style={{ background: 'var(--bg-deep)' }}>
+    <main className="min-h-screen overflow-auto pb-24" style={{ background: 'var(--ground)' }}>
       <div className="max-w-5xl mx-auto px-5 py-8">
         {/* Header */}
         <div className="flex items-center gap-4 mb-8">
-          <h1 className="text-lg font-semibold tracking-widest uppercase" style={{ color: 'var(--text-primary)' }}>
-            <span style={{ color: 'var(--accent)' }}>[</span> Admin <span style={{ color: 'var(--accent)' }}>]</span>
+          <h1 className="text-lg font-semibold tracking-widest uppercase" style={{ color: 'var(--ink)' }}>
+            <span style={{ color: 'var(--ink)' }}>[</span> Admin <span style={{ color: 'var(--ink)' }}>]</span>
           </h1>
-          <a href="/" className="text-[10px] tracking-wider uppercase" style={{ color: 'var(--text-muted)' }}>
+          <a href="/" className="text-[10px] tracking-wider uppercase" style={{ color: 'var(--ink-dim)' }}>
             Back to feed
           </a>
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 mb-6" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+        <div className="flex gap-1 mb-6" style={{ borderBottom: '1px solid var(--line)' }}>
           {(['flags', 'cards'] as Tab[]).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
               className="px-4 py-2 text-[11px] font-medium tracking-widest uppercase transition-colors"
               style={{
-                color: tab === t ? 'var(--accent)' : 'var(--text-muted)',
-                borderBottom: tab === t ? '2px solid var(--accent)' : '2px solid transparent',
+                color: tab === t ? 'var(--ink)' : 'var(--ink-dim)',
+                borderBottom: tab === t ? '2px solid var(--ink)' : '2px solid transparent',
               }}
             >
               {t === 'flags' ? `Flags (${flags.length})` : 'Cards'}
@@ -163,37 +163,37 @@ export default function AdminPage() {
         {tab === 'flags' && (
           <div className="space-y-3">
             {loading ? (
-              <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Loading flags...</p>
+              <p className="text-[11px]" style={{ color: 'var(--ink-dim)' }}>Loading flags...</p>
             ) : flags.length === 0 ? (
-              <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>No unresolved flags</p>
+              <p className="text-[11px]" style={{ color: 'var(--ink-dim)' }}>No unresolved flags</p>
             ) : (
               flags.map((flag) => (
                 <div
                   key={flag.id}
                   className="p-4"
-                  style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}
+                  style={{ background: 'var(--surface)', border: '1px solid var(--line)' }}
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
-                      <p className="text-[13px] font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+                      <p className="text-[13px] font-medium truncate" style={{ color: 'var(--ink)' }}>
                         {flag.cards?.headline ?? 'Unknown card'}
                       </p>
-                      <p className="text-[11px] mt-1 line-clamp-2" style={{ color: 'var(--text-secondary)' }}>
+                      <p className="text-[11px] mt-1 line-clamp-2" style={{ color: 'var(--ink)' }}>
                         {flag.cards?.summary}
                       </p>
                       <div className="flex items-center gap-3 mt-2">
-                        <span className="text-[10px] tracking-wider uppercase" style={{ color: 'var(--accent)' }}>
+                        <span className="text-[10px] tracking-wider uppercase" style={{ color: 'var(--ink)' }}>
                           {flag.cards?.category}
                         </span>
-                        <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                        <span className="text-[10px]" style={{ color: 'var(--ink-dim)' }}>
                           {flag.cards?.source_id}
                         </span>
-                        <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                        <span className="text-[10px]" style={{ color: 'var(--ink-dim)' }}>
                           {new Date(flag.reported_at).toLocaleDateString()}
                         </span>
                       </div>
                       {flag.reason && (
-                        <p className="text-[11px] mt-2 px-2 py-1 inline-block" style={{ background: 'var(--bg-deep)', color: 'var(--text-secondary)' }}>
+                        <p className="text-[11px] mt-2 px-2 py-1 inline-block" style={{ background: 'var(--ground)', color: 'var(--ink)' }}>
                           Reason: {flag.reason}
                         </p>
                       )}
@@ -202,7 +202,7 @@ export default function AdminPage() {
                       <button
                         onClick={() => handleFlagAction(flag.id, 'resolve')}
                         className="px-3 py-1.5 text-[10px] font-medium tracking-wider uppercase"
-                        style={{ border: '1px solid var(--border-medium)', color: 'var(--text-secondary)' }}
+                        style={{ border: '1px solid var(--line)', color: 'var(--ink)' }}
                       >
                         Dismiss
                       </button>
@@ -218,7 +218,7 @@ export default function AdminPage() {
                         target="_blank"
                         rel="noopener noreferrer"
                         className="px-3 py-1.5 text-[10px] font-medium tracking-wider uppercase text-center"
-                        style={{ border: '1px solid var(--accent)', color: 'var(--accent)' }}
+                        style={{ border: '1px solid var(--ink)', color: 'var(--ink)' }}
                       >
                         Source
                       </a>
@@ -241,9 +241,9 @@ export default function AdminPage() {
                 onChange={(e) => setSearch(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && loadCards()}
                 className="flex-1 px-3 py-2 text-[12px]"
-                style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)', outline: 'none' }}
+                style={{ background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--ink)', outline: 'none' }}
               />
-              <label className="flex items-center gap-2 text-[11px] cursor-pointer" style={{ color: 'var(--text-muted)' }}>
+              <label className="flex items-center gap-2 text-[11px] cursor-pointer" style={{ color: 'var(--ink-dim)' }}>
                 <input
                   type="checkbox"
                   checked={showSuspended}
@@ -254,7 +254,7 @@ export default function AdminPage() {
               <button
                 onClick={loadCards}
                 className="px-4 py-2 text-[10px] font-medium tracking-wider uppercase"
-                style={{ background: 'var(--accent)', color: '#fff' }}
+                style={{ background: 'var(--ink)', color: '#fff' }}
               >
                 Search
               </button>
@@ -262,29 +262,29 @@ export default function AdminPage() {
 
             <div className="space-y-2">
               {loading ? (
-                <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Loading cards...</p>
+                <p className="text-[11px]" style={{ color: 'var(--ink-dim)' }}>Loading cards...</p>
               ) : cards.length === 0 ? (
-                <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>No cards found</p>
+                <p className="text-[11px]" style={{ color: 'var(--ink-dim)' }}>No cards found</p>
               ) : (
                 cards.map((card) => (
                   <div
                     key={card.id}
                     className="px-4 py-3 flex items-center gap-4"
                     style={{
-                      background: card.is_suspended ? '#1a0a0a' : 'var(--bg-surface)',
-                      border: `1px solid ${card.is_suspended ? '#cc2200' : 'var(--border-subtle)'}`,
+                      background: card.is_suspended ? '#1a0a0a' : 'var(--surface)',
+                      border: `1px solid ${card.is_suspended ? '#cc2200' : 'var(--line)'}`,
                       opacity: card.is_suspended ? 0.7 : 1,
                     }}
                   >
                     <div className="flex-1 min-w-0">
-                      <p className="text-[12px] font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+                      <p className="text-[12px] font-medium truncate" style={{ color: 'var(--ink)' }}>
                         {card.headline}
                         {card.is_suspended && <span style={{ color: '#cc2200' }}> [SUSPENDED]</span>}
                       </p>
                       <div className="flex items-center gap-3 mt-1">
-                        <span className="text-[10px] tracking-wider uppercase" style={{ color: 'var(--accent)' }}>{card.category}</span>
-                        <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{card.source_id}</span>
-                        <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                        <span className="text-[10px] tracking-wider uppercase" style={{ color: 'var(--ink)' }}>{card.category}</span>
+                        <span className="text-[10px]" style={{ color: 'var(--ink-dim)' }}>{card.source_id}</span>
+                        <span className="text-[10px]" style={{ color: 'var(--ink-dim)' }}>
                           Q: {card.quality_score?.toFixed(2) ?? '—'}
                         </span>
                         {card.flag_count > 0 && (
@@ -292,7 +292,7 @@ export default function AdminPage() {
                             {card.flag_count} flag{card.flag_count > 1 ? 's' : ''}
                           </span>
                         )}
-                        <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                        <span className="text-[10px]" style={{ color: 'var(--ink-dim)' }}>
                           {new Date(card.published_at).toLocaleDateString()}
                         </span>
                       </div>
@@ -302,7 +302,7 @@ export default function AdminPage() {
                         <button
                           onClick={() => handleCardAction(card.id, 'unsuspend')}
                           className="px-3 py-1.5 text-[10px] font-medium tracking-wider uppercase"
-                          style={{ border: '1px solid var(--accent)', color: 'var(--accent)' }}
+                          style={{ border: '1px solid var(--ink)', color: 'var(--ink)' }}
                         >
                           Restore
                         </button>
