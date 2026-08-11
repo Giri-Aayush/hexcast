@@ -16,6 +16,11 @@ export default defineConfig({
       SUPABASE_SERVICE_KEY: 'test-service-key',
       PIPELINE_ENV: 'dev',
       LOG_LEVEL: 'error',
+      // Unit tests mock every request, so the fetchers' politeness delays buy
+      // nothing here and used to push the suite past vitest's 5s cap on a loaded
+      // machine. The integration config leaves them at 1 — that one hits real
+      // sources and must stay polite.
+      FETCH_DELAY_SCALE: '0',
     },
   },
 });

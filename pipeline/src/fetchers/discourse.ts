@@ -1,6 +1,7 @@
 import { BaseFetcher } from './base.js';
 import type { FetchResult } from '@hexcast/shared';
 import { logger } from '../utils/logger.js';
+import { delay } from '../utils/delay.js';
 
 interface DiscourseTopic {
   id: number;
@@ -42,9 +43,7 @@ function stripHtml(html: string): string {
     .trim();
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
+const sleep = delay;
 
 export class DiscourseFetcher extends BaseFetcher {
   async fetch(): Promise<FetchResult[]> {

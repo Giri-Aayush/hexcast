@@ -1,6 +1,7 @@
 import { BaseFetcher } from './base.js';
 import type { FetchResult } from '@hexcast/shared';
 import { logger } from '../utils/logger.js';
+import { delay } from '../utils/delay.js';
 
 // ── Free Crypto News API types ────────────────────────────────────────
 
@@ -85,7 +86,7 @@ export class CryptoNewsFetcher extends BaseFetcher {
 
         // Delay between pages
         if (page < MAX_PAGES) {
-          await new Promise((r) => setTimeout(r, PAGE_DELAY_MS));
+          await delay(PAGE_DELAY_MS);
         }
       } catch (error) {
         logger.error(`${this.config.sourceId}: Fetch error on page ${page}:`, error);
