@@ -17,7 +17,7 @@
 
 <br/>
 
-**[→ hexcast.xyz](https://hexcast.xyz)** &nbsp;·&nbsp; [Documentation](#how-it-works) &nbsp;·&nbsp; [Source List](./SOURCES.md) &nbsp;·&nbsp; [Report an Issue](https://github.com/Giri-Aayush/hexcast/issues)
+**[→ hexcast.xyz](https://hexcast.xyz)** &nbsp;·&nbsp; [Documentation](#how-it-works) &nbsp;·&nbsp; [Report an Issue](https://github.com/Giri-Aayush/hexcast/issues)
 
 </div>
 
@@ -92,8 +92,9 @@ Every card preserves the identifiers that matter to protocol developers: EIP num
 | Crypto Signals | CryptoPanic (trending · hot · rising) · Crypto News API |
 | Language Releases | Solidity · Vyper |
 
-Complete source registry — active sources, fetcher types, poll intervals, removed sources and reasons: [SOURCES.md](./SOURCES.md)
-Quality rankings across 6 parameters (authority, signal density, ecosystem impact, uniqueness, time sensitivity, integration reliability): [SOURCE_RANKINGS.md](./SOURCE_RANKINGS.md)
+The complete source registry — every active source with its fetcher type, poll interval
+and default category — lives in
+[`packages/shared/src/constants/sources.ts`](./packages/shared/src/constants/sources.ts).
 
 ---
 
@@ -195,7 +196,7 @@ Hexcast's quality depends on its source selection. If you know a source that bel
 2. Why it belongs (what category, what signal it provides)
 3. Whether it has machine-readable access (RSS, public API, Discourse `/latest.json`, or structured HTML)
 
-Sources are evaluated against four criteria: Ethereum-native content, machine-readable access, published within the last 90 days, and a reliability score of 3/5 or above per the [SOURCES.md](./SOURCES.md) rubric.
+Sources are evaluated against four criteria: Ethereum-native content, machine-readable access, published within the last 90 days, and a reliability score of 3/5 or above.
 
 Pull requests directly to [`packages/shared/src/constants/sources.ts`](./packages/shared/src/constants/sources.ts) are welcome. Each source entry requires `id`, `display_name`, `base_url`, `api_type`, `poll_interval_s`, and `default_category`.
 

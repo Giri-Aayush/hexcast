@@ -21,15 +21,19 @@ web/public/swe-worker-*.js
 .agents/
 .claude/
 
-# Research docs (not shipped)
+# Internal docs (not shipped) — kept on disk, never pushed.
+# README.md is the only markdown that belongs on GitHub.
 PD.md
 PROMPT.md
 RESEARCH.md
+SOURCES.md
+SOURCE_RANKINGS.md
 SOURCES_RESEARCH.md
 SPOTLIGHT_TOUR.md
 COMPETITIVE_ANALYSIS.md
 MARKETING.md
 ADR_FEED_PIPELINE.md
+LOCAL_DEV.md
 tone.md
 
 # Skills lockfile (local)
