@@ -183,7 +183,7 @@ describe('roundRobinBySource', () => {
 });
 
 describe('processRawItems drain order', () => {
-  it('defaults to oldest-first, so one deep source can swallow the batch', async () => {
+  it('leaves a shallow backlog oldest-first, so one deep source can swallow the batch', async () => {
     mocks.mockLoadConfig.mockReturnValue({ ...defaultConfig, batchSize: 3 });
     mocks.mockGetUnprocessedItems.mockResolvedValue([
       makeItemFrom('forum', 'f1'),
@@ -197,6 +197,38 @@ describe('processRawItems drain order', () => {
 
     const summarizedSources = mocks.mockNormalize.mock.calls.map((c) => c[0].source_id);
     expect(summarizedSources).toEqual(['forum', 'forum', 'forum']);
+  });
+
+  // The flag alone never reached production: pipeline.yml runs `npm run pipeline`
+  // with no arguments, so an opt-in flag left the prod cron starving the same
+  // categories. These two pin the depth-based choice that fixes that.
+  it('switches to round-robin on its own once the backlog is deep', async () => {
+    // batchSize 2, threshold 3 batches = 6; a 7-item backlog crosses it
+    mocks.mockLoadConfig.mockReturnValue({ ...defaultConfig, batchSize: 2 });
+    mocks.mockGetUnprocessedItems.mockResolvedValue([
+      ...Array.from({ length: 6 }, (_, i) => makeItemFrom('forum', `f${i}`)),
+      makeItemFrom('blog', 'b1'),
+    ]);
+    mocks.mockNormalize.mockImplementation((item: { id: string }) => makeNormalized(item.id));
+
+    await processRawItems();
+
+    const sources = mocks.mockNormalize.mock.calls.map((c) => c[0].source_id);
+    expect(sources).toEqual(['forum', 'blog']);
+  });
+
+  it('honours an explicit oldest-first even when the backlog is deep', async () => {
+    mocks.mockLoadConfig.mockReturnValue({ ...defaultConfig, batchSize: 2 });
+    mocks.mockGetUnprocessedItems.mockResolvedValue([
+      ...Array.from({ length: 6 }, (_, i) => makeItemFrom('forum', `f${i}`)),
+      makeItemFrom('blog', 'b1'),
+    ]);
+    mocks.mockNormalize.mockImplementation((item: { id: string }) => makeNormalized(item.id));
+
+    await processRawItems({ drainOrder: 'oldest-first' });
+
+    const sources = mocks.mockNormalize.mock.calls.map((c) => c[0].source_id);
+    expect(sources).toEqual(['forum', 'forum']);
   });
 
   it('spreads a capped batch across sources when round-robin is requested', async () => {

@@ -28,10 +28,19 @@ function parseSourceFilter(args: string[]): string | undefined {
   return value === 'all' ? undefined : value;
 }
 
+const DRAIN_ORDERS: DrainOrder[] = ['auto', 'round-robin', 'oldest-first'];
+
 function parseDrainOrder(args: string[]): DrainOrder {
-  // Cold-start backfill wants round-robin so every source contributes cards;
-  // steady-state wants oldest-first, which stays the default.
-  return args.includes('--drain=round-robin') ? 'round-robin' : 'oldest-first';
+  const arg = args.find((a) => a.startsWith('--drain='))?.split('=')[1];
+  if (!arg) return 'auto';
+
+  const order = DRAIN_ORDERS.find((o) => o === arg);
+  if (!order) {
+    // Silently defaulting here would look identical to the flag working, which
+    // is the same failure mode as npm swallowing it in the first place.
+    throw new Error(`Unknown --drain=${arg}. Expected one of: ${DRAIN_ORDERS.join(', ')}`);
+  }
+  return order;
 }
 
 function parseIntervalFilter(args: string[]): { min?: number; max?: number } {
