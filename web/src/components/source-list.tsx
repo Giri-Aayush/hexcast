@@ -4,20 +4,13 @@ import { useMemo, useState } from 'react';
 import type { SourceRegistry, QualityGrade } from '@hexcast/shared';
 import { SOURCE_QUALITY, GRADE_SORT_ORDER } from '@hexcast/shared';
 import { usePreferences } from '@/stores/preferences';
-import { CATEGORY_LABELS, CATEGORY_BADGE_CLASS } from '@/lib/utils';
-
-const GRADE_STYLE: Record<QualityGrade, { color: string; glow: string }> = {
-  S: { color: '#f59e0b', glow: '0 0 8px rgba(245, 158, 11, 0.4)' },
-  A: { color: '#3b82f6', glow: '0 0 8px rgba(59, 130, 246, 0.3)' },
-  B: { color: '#8b5cf6', glow: '0 0 8px rgba(139, 92, 246, 0.25)' },
-  C: { color: 'var(--text-muted)', glow: 'none' },
-};
+import { CATEGORY_LABELS } from '@/lib/utils';
 
 const GRADE_LABEL: Record<QualityGrade, string> = {
-  S: 'core protocol',
-  A: 'high signal',
-  B: 'ecosystem',
-  C: 'aggregator',
+  S: 'Core protocol',
+  A: 'High signal',
+  B: 'Ecosystem',
+  C: 'Aggregator',
 };
 
 const CATEGORIES = [
@@ -36,7 +29,6 @@ export function SourceList({ sources }: { sources: SourceRegistry[] }) {
   const sorted = useMemo(() => {
     let filtered = [...sources];
 
-    // Apply active filters
     if (activeGrade) {
       filtered = filtered.filter(s => (SOURCE_QUALITY[s.id] ?? 'C') === activeGrade);
     }
@@ -44,7 +36,6 @@ export function SourceList({ sources }: { sources: SourceRegistry[] }) {
       filtered = filtered.filter(s => s.default_category === activeCategory);
     }
 
-    // Sort by grade then alphabetically
     return filtered.sort((a, b) => {
       const gradeA = SOURCE_QUALITY[a.id] ?? 'C';
       const gradeB = SOURCE_QUALITY[b.id] ?? 'C';
@@ -54,12 +45,10 @@ export function SourceList({ sources }: { sources: SourceRegistry[] }) {
     });
   }, [sources, activeGrade, activeCategory]);
 
-  // Counts for filter pills
   const gradeCounts = useMemo(() => {
     const counts: Record<QualityGrade, number> = { S: 0, A: 0, B: 0, C: 0 };
     for (const s of sources) {
-      const g = SOURCE_QUALITY[s.id] ?? 'C';
-      counts[g]++;
+      counts[SOURCE_QUALITY[s.id] ?? 'C']++;
     }
     return counts;
   }, [sources]);
@@ -76,165 +65,102 @@ export function SourceList({ sources }: { sources: SourceRegistry[] }) {
 
   return (
     <div>
-      {/* Filter mode toggle */}
-      <div className="flex items-center gap-2 mb-3">
+      {/* Mode toggle — one segmented control, ink slab on the active half */}
+      <div className="hx-seg" role="tablist" aria-label="Group sources by">
         <button
+          role="tab"
+          aria-selected={filterMode === 'grade'}
           onClick={() => { setFilterMode('grade'); setActiveCategory(null); }}
-          className="px-2.5 py-1 text-[10px] font-medium tracking-widest uppercase"
-          style={{
-            background: filterMode === 'grade' ? 'var(--accent)' : 'transparent',
-            color: filterMode === 'grade' ? '#fff' : 'var(--text-muted)',
-            border: `1px solid ${filterMode === 'grade' ? 'var(--accent)' : 'var(--border-subtle)'}`,
-          }}
         >
-          by rank
+          BY RANK
         </button>
         <button
+          role="tab"
+          aria-selected={filterMode === 'category'}
           onClick={() => { setFilterMode('category'); setActiveGrade(null); }}
-          className="px-2.5 py-1 text-[10px] font-medium tracking-widest uppercase"
-          style={{
-            background: filterMode === 'category' ? 'var(--accent)' : 'transparent',
-            color: filterMode === 'category' ? '#fff' : 'var(--text-muted)',
-            border: `1px solid ${filterMode === 'category' ? 'var(--accent)' : 'var(--border-subtle)'}`,
-          }}
         >
-          by category
+          BY CATEGORY
         </button>
       </div>
 
       {/* Filter pills */}
-      <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-3">
+      <div className="hx-pillrow scrollbar-hide">
         {filterMode === 'grade' ? (
-          (['S', 'A', 'B', 'C'] as QualityGrade[]).map(grade => {
-            const isActive = activeGrade === grade;
-            const gs = GRADE_STYLE[grade];
-            return (
-              <button
-                key={grade}
-                onClick={() => setActiveGrade(isActive ? null : grade)}
-                className="whitespace-nowrap px-2.5 py-1 text-[10px] font-medium tracking-widest uppercase"
-                style={{
-                  background: isActive ? gs.color : 'transparent',
-                  color: isActive ? '#fff' : gs.color,
-                  border: `1px solid ${isActive ? gs.color : 'var(--border-subtle)'}`,
-                  textShadow: isActive ? 'none' : gs.glow,
-                }}
-              >
-                [{grade}] {GRADE_LABEL[grade]} ({gradeCounts[grade]})
-              </button>
-            );
-          })
+          (['S', 'A', 'B', 'C'] as QualityGrade[]).map(grade => (
+            <button
+              key={grade}
+              className="hx-pill"
+              aria-pressed={activeGrade === grade}
+              onClick={() => setActiveGrade(activeGrade === grade ? null : grade)}
+            >
+              {grade} · {GRADE_LABEL[grade].toUpperCase()} · {gradeCounts[grade]}
+            </button>
+          ))
         ) : (
           CATEGORIES.map(cat => {
-            const isActive = activeCategory === cat;
             const count = categoryCounts[cat] ?? 0;
             if (count === 0) return null;
             return (
               <button
                 key={cat}
-                onClick={() => setActiveCategory(isActive ? null : cat)}
-                className={`whitespace-nowrap px-2.5 py-1 text-[10px] font-medium tracking-widest uppercase ${CATEGORY_BADGE_CLASS[cat] ?? ''}`}
-                style={{
-                  background: isActive ? 'var(--accent)' : 'transparent',
-                  color: isActive ? '#fff' : undefined,
-                  border: `1px solid ${isActive ? 'var(--accent)' : 'var(--border-subtle)'}`,
-                }}
+                className="hx-pill"
+                data-category={cat}
+                aria-pressed={activeCategory === cat}
+                onClick={() => setActiveCategory(activeCategory === cat ? null : cat)}
               >
-                {CATEGORY_LABELS[cat] ?? cat} ({count})
+                <span className="hx-pill-mark" aria-hidden="true" />
+                {(CATEGORY_LABELS[cat] ?? cat).toUpperCase()} · {count}
               </button>
             );
           })
         )}
       </div>
 
-      {/* Source count */}
-      <div className="text-[9px] tracking-wider uppercase mb-3" style={{ color: 'var(--text-muted)' }}>
-        showing {sorted.length} of {sources.length} sources
+      <div className="hx-showing">
+        SHOWING {sorted.length} OF {sources.length}
       </div>
 
-      {/* Source list */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+      {/* Source rows, grouped by grade with hairline dividers */}
+      <div className="hx-srcgrid">
         {sorted.map(source => {
           const hidden = hiddenSources.includes(source.id);
-          const badgeClass = CATEGORY_BADGE_CLASS[source.default_category] ?? 'badge-research';
           const grade: QualityGrade = SOURCE_QUALITY[source.id] ?? 'C';
-          const style = GRADE_STYLE[grade];
           const showDivider = grade !== lastGrade && !activeGrade;
           lastGrade = grade;
 
           return (
-            <div key={source.id} className={showDivider ? 'col-span-full' : ''}>
+            <div key={source.id} className={showDivider ? 'hx-srcgroup' : undefined}>
               {showDivider && (
-                <div className="flex items-center gap-2 pt-4 pb-2">
-                  <span
-                    className="text-[10px] font-semibold tracking-widest"
-                    style={{ color: style.color, textShadow: style.glow }}
-                  >
-                    [{grade}]
-                  </span>
-                  <div className="h-px flex-1" style={{ background: 'var(--border-subtle)' }} />
-                  <span className="text-[9px] tracking-wider uppercase" style={{ color: 'var(--text-muted)' }}>
-                    {GRADE_LABEL[grade]}
-                  </span>
+                <div className="hx-graderule">
+                  <span>{grade}</span>
+                  <div aria-hidden="true" />
+                  <span>{GRADE_LABEL[grade].toUpperCase()}</span>
                 </div>
               )}
-              <div
-                className="flex items-center justify-between p-3 md:p-4 transition-all duration-200"
-                style={{
-                  background: hidden ? 'transparent' : 'var(--bg-card)',
-                  border: hidden
-                    ? '1px dashed var(--border-subtle)'
-                    : '1px solid var(--border-medium)',
-                  opacity: hidden ? 0.5 : 1,
-                  boxShadow: hidden ? 'none' : '0 2px 12px rgba(0, 0, 0, 0.2)',
-                }}
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className="shrink-0 text-[9px] font-bold tracking-wider"
-                      style={{ color: style.color, textShadow: style.glow }}
-                    >
-                      {grade}
-                    </span>
-                    <div
-                      className="text-[12px] md:text-[13px] font-medium truncate"
-                      style={{ color: hidden ? 'var(--text-muted)' : 'var(--text-primary)' }}
-                    >
-                      {source.display_name}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 mt-1 pl-5">
-                    <span
-                      className={`inline-block px-1.5 py-0.5 text-[9px] font-medium tracking-widest uppercase ${badgeClass}`}
-                    >
-                      {CATEGORY_LABELS[source.default_category] ?? source.default_category}
-                    </span>
+              {/* The row takes the category's tinted surface, same construction as
+                  the feed card: surface + badge hue, nothing else carries colour. */}
+              <div className="hx-src" data-category={source.default_category} data-hidden={hidden}>
+                <div className="hx-src-main">
+                  <div className="hx-src-name">{source.display_name}</div>
+                  <div className="hx-src-meta">
+                    {(CATEGORY_LABELS[source.default_category] ?? source.default_category).toUpperCase()}
+                    {' · '}
+                    {grade === 'S' ? 'TIER 1' : grade === 'A' ? 'TIER 2' : grade === 'B' ? 'TIER 3' : 'TIER 4'}
                   </div>
                 </div>
                 <button
+                  className="hx-switch"
+                  role="switch"
+                  aria-checked={!hidden}
+                  aria-label={`${source.display_name} ${hidden ? 'muted' : 'on'}`}
                   onClick={() => toggleHideSource(source.id)}
-                  className="btn-neon ml-3 shrink-0 px-3 py-1 text-[10px] font-medium tracking-widest uppercase"
-                  style={{
-                    color: hidden ? 'var(--text-muted)' : 'var(--accent)',
-                    border: hidden
-                      ? '1px solid var(--border-subtle)'
-                      : '1px solid var(--accent)',
-                    textShadow: hidden ? 'none' : '0 0 8px rgba(59, 130, 246, 0.2)',
-                  }}
                 >
-                  [{hidden ? 'off' : 'on'}]
+                  <span aria-hidden="true" />
                 </button>
               </div>
             </div>
           );
         })}
-
-        {sorted.length === 0 && (
-          <div className="col-span-full py-8 text-center text-[11px] tracking-widest uppercase" style={{ color: 'var(--text-muted)' }}>
-            [no sources match filter]
-          </div>
-        )}
       </div>
     </div>
   );
