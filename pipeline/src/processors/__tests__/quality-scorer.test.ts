@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { scoreQuality, shouldAutoSuppress } from '../quality-scorer.js';
+import { scoreQuality, scoreQualityBreakdown, shouldAutoSuppress } from '../quality-scorer.js';
 
 describe('scoreQuality', () => {
   it('returns 1.0 for tier-1 source with full content signals', () => {
@@ -197,5 +197,94 @@ describe('shouldAutoSuppress', () => {
 
   it('returns false for score above 0.25', () => {
     expect(shouldAutoSuppress(0.5)).toBe(false);
+  });
+});
+
+describe('generation signals', () => {
+  const base = {
+    sourceId: 'ethresear.ch', // weight 1.0, so source weight can't mask the effect
+    headline: 'A Headline Long Enough To Pass',
+    summary: 'x'.repeat(200),
+    author: 'someone',
+    engagement: null,
+  };
+
+  const clean = {
+    attempts: 1,
+    wordCount: 58,
+    truncated: false,
+    entitiesPreserved: true,
+    missingEntities: [] as string[],
+  };
+
+  it('scores a clean first-try summary above a struggling one', () => {
+    const good = scoreQuality({ ...base, signals: clean });
+    const bad = scoreQuality({
+      ...base,
+      signals: {
+        attempts: 3,
+        wordCount: 45,
+        truncated: true,
+        entitiesPreserved: false,
+        missingEntities: ['EIP-8037', 'v2.4.1', '71%'],
+      },
+    });
+
+    expect(good).toBeGreaterThan(bad);
+    // The old formula gave both of these exactly 1.0 — identical fields, identical
+    // source. Spread is the entire point of the rework.
+    expect(good - bad).toBeGreaterThan(0.3);
+  });
+
+  it('penalises each lost identifier rather than just failing the check', () => {
+    const one = scoreQuality({
+      ...base,
+      signals: { ...clean, entitiesPreserved: false, missingEntities: ['EIP-8037'] },
+    });
+    const three = scoreQuality({
+      ...base,
+      signals: { ...clean, entitiesPreserved: false, missingEntities: ['EIP-8037', '71%', 'v2.4.1'] },
+    });
+
+    expect(one).toBeGreaterThan(three);
+  });
+
+  it('penalises truncation on its own', () => {
+    const whole = scoreQuality({ ...base, signals: clean });
+    const cut = scoreQuality({ ...base, signals: { ...clean, truncated: true } });
+
+    expect(cut).toBeLessThan(whole);
+  });
+
+  it('keeps the legacy formula when signals are absent', () => {
+    // Cards written before signals existed must not be re-baselined against a
+    // formula they were never measured by.
+    const legacy = scoreQualityBreakdown(base);
+
+    expect(legacy.generation).toBeNull();
+    expect(legacy.score).toBeCloseTo(1.0 * 0.4 + 0.9 * 0.6, 5);
+  });
+
+  it('makes auto-suppression reachable, which it was not before', () => {
+    // Old floor for any card that could exist was sourceWeight*0.4 + 0.45, so even
+    // a weight-0 source scored 0.45 against a 0.25 cut and nothing could ever be
+    // suppressed. A bad summary from a weak source now falls below it.
+    const worst = scoreQuality({
+      sourceId: 'cryptopanic.com/rising', // weight 0.3
+      headline: 'Short',
+      summary: 'tiny',
+      author: null,
+      engagement: null,
+      signals: {
+        attempts: 3,
+        wordCount: 20,
+        truncated: true,
+        entitiesPreserved: false,
+        missingEntities: ['a', 'b', 'c', 'd'],
+      },
+    });
+
+    expect(worst).toBeLessThan(0.25);
+    expect(shouldAutoSuppress(worst)).toBe(true);
   });
 });

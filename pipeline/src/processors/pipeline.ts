@@ -5,7 +5,7 @@ import { normalize } from './normalizer.js';
 import { isDuplicate } from './deduplicator.js';
 import { classify } from './classifier.js';
 import { summarize } from './summarizer.js';
-import { scoreQuality, shouldAutoSuppress } from './quality-scorer.js';
+import { scoreQualityBreakdown, shouldAutoSuppress } from './quality-scorer.js';
 import { hashUrl } from '../utils/hash.js';
 import { loadConfig } from '../config.js';
 import { logger } from '../utils/logger.js';
@@ -172,16 +172,18 @@ export async function processRawItems(
         return;
       }
 
-      const { headline, summary } = await summarize(normalized.fullText, normalized.title);
+      const { headline, summary, signals } = await summarize(normalized.fullText, normalized.title);
 
       // 5. Quality score
-      const qualityScore = scoreQuality({
+      const quality = scoreQualityBreakdown({
         sourceId: normalized.sourceId,
         headline,
         summary,
         author: normalized.author,
         engagement: normalized.engagement,
+        signals,
       });
+      const qualityScore = quality.score;
 
       if (shouldAutoSuppress(qualityScore)) {
         logger.info(`Auto-suppressed low-quality card (${qualityScore.toFixed(2)}): "${headline}"`);
@@ -203,6 +205,8 @@ export async function processRawItems(
         engagement: normalized.engagement,
         pipelineVersion: config.pipelineVersion,
         qualityScore,
+        quality,
+        signals,
       });
 
       // 7. Queue high-priority items (SECURITY / UPGRADE)

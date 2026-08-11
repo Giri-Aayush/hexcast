@@ -1,4 +1,5 @@
 import type { EngagementMetrics } from '@hexcast/shared';
+import type { SummarySignals } from './summarizer.js';
 
 /**
  * Source quality weights based on tier and signal reliability.
@@ -100,20 +101,83 @@ interface QualityInput {
   summary: string;
   author: string | null;
   engagement: EngagementMetrics | null;
+  /** Absent for cards written before generation signals were recorded. */
+  signals?: SummarySignals;
+}
+
+/** The components behind a score, stored so a number can be explained later. */
+export interface QualityBreakdown {
+  score: number;
+  sourceWeight: number;
+  contentSignals: number;
+  generation: number | null;
+}
+
+/**
+ * Target band the summarizer aims for. Distance outside it is what "the model
+ * struggled" looks like numerically.
+ */
+const TARGET_MIN_WORDS = 55;
+const TARGET_MAX_WORDS = 60;
+
+/**
+ * How well the summary was actually generated, 0–1.
+ *
+ * This is the part the old formula was missing entirely. It had four existence
+ * checks, two of which — headline longer than 10 chars, summary longer than 40 —
+ * are true of every card that can reach the database, so 0.75 of the content
+ * component was free and 55% of cards scored exactly 1.0. Nothing that varies
+ * with whether the summary is any *good* was being measured.
+ */
+function scoreGeneration(signals: SummarySignals): number {
+  // Landing in range first try is the strongest signal we have that the model
+  // understood the source. Each retry means it needed to be corrected.
+  const firstTry = signals.attempts <= 1 ? 1 : signals.attempts === 2 ? 0.6 : 0.3;
+
+  // Entity preservation is the closest thing to ground truth: a summary that
+  // dropped EIP-8037 is factually poorer, not just differently worded. Scaled by
+  // how many were lost rather than pass/fail, so losing one ≠ losing five.
+  const entities = signals.entitiesPreserved
+    ? 1
+    : Math.max(0, 1 - signals.missingEntities.length * 0.25);
+
+  // Distance outside the target band, in words, normalised over the widest gap
+  // the accept path allows (20 words below the floor).
+  const overshoot = Math.max(0, signals.wordCount - TARGET_MAX_WORDS);
+  const undershoot = Math.max(0, TARGET_MIN_WORDS - signals.wordCount);
+  const length = Math.max(0, 1 - (overshoot + undershoot) / 20);
+
+  // Truncation cuts a sentence mid-thought, so it is a defect in its own right
+  // rather than just a length miss.
+  const truncationPenalty = signals.truncated ? 0.7 : 1;
+
+  return (firstTry * 0.4 + entities * 0.4 + length * 0.2) * truncationPenalty;
 }
 
 /**
  * Compute a quality score (0.0 – 1.0) for a card.
  *
- * Formula: sourceWeight * 0.4 + contentSignals * 0.6
+ * With generation signals:  sourceWeight * 0.3 + content * 0.2 + generation * 0.5
+ * Without (legacy path):    sourceWeight * 0.4 + content * 0.6
  *
- * Content signals (0.0 – 1.0):
+ * Generation carries the most weight because it is the only part that varies with
+ * whether this particular summary came out well. Source weight says the source is
+ * usually good; content signals say the fields are populated. Neither can tell a
+ * clean first-try summary from one that needed three retries and still lost half
+ * its identifiers.
+ *
+ * Content signals (0.0 – 1.0), unchanged so legacy scores stay comparable:
  *   - Headline exists and is substantial (> 10 chars): 0.35
  *   - Summary exists and is substantial (> 40 chars):  0.40
  *   - Author attribution present:                      0.15
  *   - Engagement data present:                         0.10
  */
 export function scoreQuality(input: QualityInput): number {
+  return scoreQualityBreakdown(input).score;
+}
+
+/** Same score, with its components, for storing next to the card. */
+export function scoreQualityBreakdown(input: QualityInput): QualityBreakdown {
   const sourceWeight = SOURCE_QUALITY_WEIGHTS[input.sourceId] ?? DEFAULT_SOURCE_WEIGHT;
 
   let contentSignals = 0;
@@ -142,7 +206,19 @@ export function scoreQuality(input: QualityInput): number {
     contentSignals += 0.10;
   }
 
-  return sourceWeight * 0.4 + contentSignals * 0.6;
+  if (!input.signals) {
+    // Legacy weighting, kept so cards scored before signals existed are not
+    // silently re-baselined against a formula they were never measured by.
+    return { score: sourceWeight * 0.4 + contentSignals * 0.6, sourceWeight, contentSignals, generation: null };
+  }
+
+  const generation = scoreGeneration(input.signals);
+  return {
+    score: sourceWeight * 0.3 + contentSignals * 0.2 + generation * 0.5,
+    sourceWeight,
+    contentSignals,
+    generation,
+  };
 }
 
 /**

@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => {
     mockIsDuplicate: vi.fn(),
     mockClassify: vi.fn(),
     mockSummarize: vi.fn(),
-    mockScoreQuality: vi.fn(),
+    mockScoreQualityBreakdown: vi.fn(),
     mockShouldAutoSuppress: vi.fn(),
     mockHashUrl: vi.fn(),
     mockLoadConfig: vi.fn(),
@@ -46,7 +46,7 @@ vi.mock('../summarizer.js', () => ({
 }));
 
 vi.mock('../quality-scorer.js', () => ({
-  scoreQuality: mocks.mockScoreQuality,
+  scoreQualityBreakdown: mocks.mockScoreQualityBreakdown,
   shouldAutoSuppress: mocks.mockShouldAutoSuppress,
 }));
 
@@ -103,6 +103,14 @@ function makeNormalized(id: string) {
   };
 }
 
+const defaultSignals = {
+  attempts: 1,
+  wordCount: 58,
+  truncated: false,
+  entitiesPreserved: true,
+  missingEntities: [] as string[],
+};
+
 const defaultConfig = {
   batchSize: 100,
   concurrency: 1,
@@ -123,8 +131,17 @@ beforeEach(() => {
   mocks.mockMarkAsProcessed.mockResolvedValue(undefined);
   mocks.mockIsDuplicate.mockResolvedValue(false);
   mocks.mockClassify.mockReturnValue('ANNOUNCEMENT');
-  mocks.mockSummarize.mockResolvedValue({ headline: 'Test Headline', summary: 'Test summary text.' });
-  mocks.mockScoreQuality.mockReturnValue(0.8);
+  mocks.mockSummarize.mockResolvedValue({
+    headline: 'Test Headline',
+    summary: 'Test summary text.',
+    signals: defaultSignals,
+  });
+  mocks.mockScoreQualityBreakdown.mockReturnValue({
+    score: 0.8,
+    sourceWeight: 1,
+    contentSignals: 0.9,
+    generation: 0.7,
+  });
   mocks.mockShouldAutoSuppress.mockReturnValue(false);
   mocks.mockHashUrl.mockReturnValue('abc123hash');
   mocks.mockCreateCard.mockResolvedValue('card-uuid-1');
@@ -310,7 +327,7 @@ describe('processRawItems', () => {
     const normalized = makeNormalized('item-1');
     mocks.mockGetUnprocessedItems.mockResolvedValue([item]);
     mocks.mockNormalize.mockReturnValue(normalized);
-    mocks.mockScoreQuality.mockReturnValue(0.1);
+    mocks.mockScoreQualityBreakdown.mockReturnValue({ score: 0.1, sourceWeight: 0.5, contentSignals: 0.2, generation: 0.1 });
     mocks.mockShouldAutoSuppress.mockReturnValue(true);
 
     const result = await processRawItems();
@@ -340,12 +357,16 @@ describe('processRawItems', () => {
     );
     expect(mocks.mockClassify).toHaveBeenCalledWith(normalized.sourceId);
     expect(mocks.mockSummarize).toHaveBeenCalledWith(normalized.fullText, normalized.title);
-    expect(mocks.mockScoreQuality).toHaveBeenCalledWith({
+    expect(mocks.mockScoreQualityBreakdown).toHaveBeenCalledWith({
       sourceId: normalized.sourceId,
       headline: 'Test Headline',
       summary: 'Test summary text.',
       author: normalized.author,
       engagement: normalized.engagement,
+      // The generation signals are the whole point of the rework — if the
+      // pipeline stops forwarding them the score silently reverts to the old
+      // existence-only formula, which is what made it unable to suppress.
+      signals: defaultSignals,
     });
     expect(mocks.mockCreateCard).toHaveBeenCalledWith({
       sourceId: normalized.sourceId,
@@ -359,6 +380,10 @@ describe('processRawItems', () => {
       engagement: normalized.engagement,
       pipelineVersion: '1.0.0',
       qualityScore: 0.8,
+      // Stored alongside the score so a suppression decision can be explained
+      // later — picking a threshold blind is how the old one became unreachable.
+      quality: { score: 0.8, sourceWeight: 1, contentSignals: 0.9, generation: 0.7 },
+      signals: defaultSignals,
     });
     expect(mocks.mockMarkAsProcessed).toHaveBeenCalledWith('item-1');
   });
