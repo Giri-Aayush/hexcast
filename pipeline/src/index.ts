@@ -2,7 +2,7 @@ import { loadConfig } from './config.js';
 import { getActiveSources, updateLastPolledAt } from './db/sources.js';
 import { insertRawItem } from './db/raw-items.js';
 import { createFetcher } from './fetchers/index.js';
-import { processRawItems } from './processors/pipeline.js';
+import { processRawItems, type DrainOrder } from './processors/pipeline.js';
 import { acquireLock, releaseLock } from './db/pipeline-lock.js';
 import { logger } from './utils/logger.js';
 
@@ -26,6 +26,12 @@ function parseSourceFilter(args: string[]): string | undefined {
   if (!sourcesArg) return undefined;
   const value = sourcesArg.split('=')[1];
   return value === 'all' ? undefined : value;
+}
+
+function parseDrainOrder(args: string[]): DrainOrder {
+  // Cold-start backfill wants round-robin so every source contributes cards;
+  // steady-state wants oldest-first, which stays the default.
+  return args.includes('--drain=round-robin') ? 'round-robin' : 'oldest-first';
 }
 
 function parseIntervalFilter(args: string[]): { min?: number; max?: number } {
@@ -126,7 +132,7 @@ async function main() {
     logger.info(`Fetch phase complete: ${totalFetched} new items`);
 
     // 3. Process phase
-    const result = await processRawItems();
+    const result = await processRawItems({ drainOrder: parseDrainOrder(process.argv) });
     processed = result.processed;
     skipped = result.skipped;
     failed = result.failed;
