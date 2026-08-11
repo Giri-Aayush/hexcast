@@ -52,7 +52,13 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <ClerkProvider>
-      <html lang="en">
+      {/* suppressHydrationWarning on both: browser extensions inject into head and
+          body before React hydrates — an Aztec wallet extension adds an inpage
+          script, ColorZilla adds cz-shortcut-listen — and React reports the first
+          divergent node rather than the cause. Verified in a clean headless browser:
+          zero hydration warnings. This only silences attribute mismatches on these
+          two elements, not anything inside the app. */}
+      <html lang="en" suppressHydrationWarning>
         <head>
           <script
             type="application/ld+json"
@@ -87,12 +93,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           />
           <link rel="preconnect" href="https://fonts.googleapis.com" />
           <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+          {/* Geist + Geist Mono, the faces the design is drawn in. Loaded the same
+              way the design doc loads them, because neither is in next/font/google
+              and the `geist` package cannot be installed while node_modules is
+              shared between the two agent worktrees. The CSP already allows
+              fonts.googleapis.com and fonts.gstatic.com.
+              IBM Plex Mono stays until the last component stops reading the old
+              --font-mono. */}
           <link
-            href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+            href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&family=Geist+Mono:wght@400;500&family=IBM+Plex+Mono:wght@300;400;500;600;700&display=swap"
             rel="stylesheet"
           />
         </head>
-        <body className="antialiased overflow-hidden" style={{ color: 'var(--text-primary)' }}>
+        <body suppressHydrationWarning className="antialiased overflow-hidden" style={{ color: 'var(--text-primary)' }}>
           <PostHogProvider>
             {children}
             <BottomNav />

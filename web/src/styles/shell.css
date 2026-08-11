@@ -1,0 +1,317 @@
+/**
+ * App shell, per `Hexcast.dc.html` t3 / 3a.
+ *
+ * A 46px app bar and a dark nav pill, both constant; everything between them is the
+ * view. The nav pill is the one large dark mass in a light UI, which is what keeps
+ * the ground from reading washed out.
+ */
+
+.hx-shell {
+  display: flex;
+  flex-direction: column;
+  background: var(--ground);
+  color: var(--ink);
+}
+
+/* ── App bar, 46px ────────────────────────────────────────────────────── */
+/* No border. The card's rounded shoulder against it is the separation. */
+.hx-appbar {
+  flex: none;
+  height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+}
+
+.hx-wordmark {
+  font: 500 15px/1 var(--font-sans);
+  letter-spacing: -0.024em;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+/* The only blue in the shell. Everything else carrying colour is a card. */
+.hx-wordmark span {
+  color: var(--link);
+}
+
+.hx-appbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Label, hairline, count — one control reading as "what is filtered, and how many
+   cards that leaves". */
+.hx-filter-chip {
+  height: 32px;
+  display: flex;
+  align-items: center;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: rgba(16, 16, 20, 0.06);
+  color: var(--ink);
+  cursor: pointer;
+  padding: 0;
+}
+
+.hx-filter-chip:hover {
+  background: rgba(16, 16, 20, 0.1);
+}
+
+.hx-filter-label {
+  padding: 0 9px 0 11px;
+  font: 500 10px/1 var(--font-mono);
+  letter-spacing: 0.12em;
+}
+
+.hx-filter-sep {
+  width: 1px;
+  height: 14px;
+  background: rgba(16, 16, 20, 0.14);
+}
+
+.hx-filter-count {
+  padding: 0 11px 0 9px;
+  font: 400 10px/1 var(--font-mono);
+  letter-spacing: 0.06em;
+  color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Square with the control radius, not a circle — same family as the nav and the
+   card controls. */
+.hx-avatar {
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: var(--ink);
+  color: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 500 10px/1 var(--font-mono);
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  padding: 0;
+}
+
+/* ── Nav pill ─────────────────────────────────────────────────────────── */
+/* Fixed rather than in flow: the feed is `fixed inset-0`, so a nav in normal flow
+   sits underneath it and is never seen. 3a draws it as the last row of a flex
+   column; fixed is how that reads once the feed owns the viewport. */
+.hx-navwrap {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  padding: 0 10px 12px;
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+}
+
+.hx-nav {
+  height: 54px;
+  border-radius: var(--radius-nav);
+  background: var(--ink);
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  align-items: center;
+  padding: 5px;
+  gap: 2px;
+}
+
+.hx-nav a {
+  height: 44px;
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 400 10px/1 var(--font-mono);
+  letter-spacing: 0.12em;
+  color: #9a9aa4;
+  text-decoration: none;
+  transition: color 120ms ease, background 120ms ease;
+}
+
+.hx-nav a[aria-current='page'] {
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.hx-nav a:focus-visible {
+  outline: 2px solid var(--surface);
+  outline-offset: -2px;
+}
+
+/* ── Filter sheet ─────────────────────────────────────────────────────── */
+.hx-sheet-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(16, 16, 20, 0.32);
+  display: flex;
+  align-items: flex-end;
+}
+
+.hx-sheet-panel {
+  width: 100%;
+  background: var(--surface);
+  border-radius: var(--radius-card) var(--radius-card) 0 0;
+  padding: 18px 14px max(18px, env(safe-area-inset-bottom));
+  max-height: 76dvh;
+  overflow-y: auto;
+}
+
+.hx-sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  font: 500 10px/1 var(--font-mono);
+  letter-spacing: 0.16em;
+  color: var(--ink-dim);
+}
+
+.hx-sheet-head button {
+  min-height: 32px;
+  border: 0;
+  background: none;
+  font: 400 10px/1 var(--font-mono);
+  letter-spacing: 0.12em;
+  color: var(--ink-dim);
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+/* Clerk's keyless dev panel plants itself over the bottom of the viewport, exactly
+   where the action bar and nav live. Dev-only, but it makes the app impossible to
+   evaluate or screenshot. */
+.cl-keylessPrompt,
+[class*='cl-keylessPrompt'],
+[data-clerk-keyless] {
+  display: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hx-nav a {
+    transition: none;
+  }
+}
+
+/* ── Desktop ─────────────────────────────────────────────────────────── */
+/* Interim: cap and centre the card so the summary does not run the full width of a
+   desktop window, which would break the measure the type scale is built around. The
+   real desktop layout is a separate screen and is not built yet. */
+@media (min-width: 900px) {
+  .hx-feed .snap-item {
+    align-items: center;
+  }
+  .hx-feed .hx-card {
+    width: 660px;
+    max-width: 100%;
+    margin: 0 auto;
+  }
+  .hx-dither {
+    height: 148px;
+  }
+}
+
+/* ── Install prompt ───────────────────────────────────────────────────── */
+/* Sits above the nav pill, matching the card's radius and the surface tone. Mono is
+   reserved for the label and the host — the sentence is Geist, because it is prose
+   and mono was the thing making the old panel hard to read. */
+.hx-install {
+  position: fixed;
+  right: 16px;
+  bottom: calc(78px + max(0px, env(safe-area-inset-bottom)));
+  z-index: 55;
+  width: 320px;
+  max-width: calc(100vw - 32px);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  padding: 18px 20px 20px;
+}
+
+.hx-install-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.hx-install-label {
+  font: 500 10px/1 var(--font-mono);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+
+.hx-install-close {
+  border: 0;
+  background: none;
+  padding: 0 2px;
+  font: 400 15px/1 var(--font-sans);
+  color: var(--ink-faint);
+  cursor: pointer;
+  /* Small glyph, real target. */
+  min-width: 28px;
+  min-height: 28px;
+  margin: -6px -6px 0 0;
+}
+
+.hx-install-close:hover {
+  color: var(--ink);
+}
+
+.hx-install-body {
+  margin: 0 0 14px;
+  font: 400 14px/1.55 var(--font-sans);
+  color: var(--ink);
+  text-wrap: pretty;
+}
+
+/* The host is the one thing to be copied by eye, so it gets mono, the ink ground and
+   the control radius — it reads as a value, not a sentence. */
+.hx-install-host {
+  background: var(--ink);
+  color: var(--surface);
+  border-radius: var(--radius-control);
+  padding: 11px 14px;
+  font: 500 12.5px/1 var(--font-mono);
+  letter-spacing: 0.04em;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.hx-install-note {
+  margin: 12px 0 0;
+  font: 400 10px/1.5 var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.hx-install-close:focus-visible {
+  outline: 2px solid var(--link);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Scroll-to-top. Ink on ground, control radius — same family as the nav pill. */
+.hx-totop {
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: var(--radius-control);
+  font: 400 14px/1 var(--font-sans);
+  cursor: pointer;
+  right: 16px;
+  bottom: calc(88px + max(0px, env(safe-area-inset-bottom)));
+}
