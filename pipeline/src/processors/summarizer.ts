@@ -135,10 +135,25 @@ async function rateLimit(mode: 'prod' | 'dev') {
   resolve!();
 }
 
+/**
+ * How the summary was actually produced. All of this was already computed and
+ * logged, then discarded — which is why quality_score had nothing real to score
+ * and ended up measuring whether a headline was longer than 10 characters.
+ */
+export interface SummarySignals {
+  /** 1 means it landed in range first try. */
+  attempts: number;
+  wordCount: number;
+  /** Ran past the 67-word ceiling and got cut mid-thought. */
+  truncated: boolean;
+  entitiesPreserved: boolean;
+  missingEntities: string[];
+}
+
 export async function summarize(
   fullText: string,
   title: string
-): Promise<{ headline: string; summary: string }> {
+): Promise<{ headline: string; summary: string; signals: SummarySignals }> {
   const { client, model, mode } = createClient();
 
   logger.debug(`Summarizing with ${mode === 'prod' ? 'GPT-4.1 Mini (V1.3)' : 'Ollama 8B (V1)'}`);
@@ -156,8 +171,11 @@ export async function summarize(
 
   let summary = '';
   let lastWordCount = 0;
+  let attempts = 0;
+  let truncated = false;
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    attempts = attempt;
     let prompt = buildUserPrompt(truncatedText);
 
     // On retry: provide word count feedback
@@ -213,6 +231,7 @@ export async function summarize(
       }
       if (lastWordCount > HARD_MAX_WORDS) {
         // Over hard limit — truncate to 60 words
+        truncated = true;
         const words = summary.split(/\s+/).filter(Boolean);
         summary = words.slice(0, 60).join(' ');
         if (!summary.endsWith('.')) summary += '.';
@@ -232,6 +251,7 @@ export async function summarize(
   // Hard safety net: never allow more than HARD_MAX_WORDS
   lastWordCount = countWords(summary);
   if (lastWordCount > HARD_MAX_WORDS) {
+    truncated = true;
     const words = summary.split(/\s+/).filter(Boolean);
     summary = words.slice(0, 60).join(' ');
     if (!summary.endsWith('.')) summary += '.';
@@ -264,5 +284,15 @@ export async function summarize(
     headlineResponse.choices[0]?.message?.content?.trim() ??
     title.split(' ').slice(0, 12).join(' ');
 
-  return { headline, summary };
+  return {
+    headline,
+    summary,
+    signals: {
+      attempts,
+      wordCount: countWords(summary),
+      truncated,
+      entitiesPreserved: entityCheck.passed,
+      missingEntities: entityCheck.missingEntities,
+    },
+  };
 }

@@ -1,5 +1,7 @@
 import { supabase } from './client.js';
 import type { Card, Category, EngagementMetrics } from '@hexcast/shared';
+import type { QualityBreakdown } from '../processors/quality-scorer.js';
+import type { SummarySignals } from '../processors/summarizer.js';
 
 export interface CreateCardParams {
   sourceId: string;
@@ -13,6 +15,9 @@ export interface CreateCardParams {
   engagement: EngagementMetrics | null;
   pipelineVersion: string;
   qualityScore?: number;
+  /** Components behind qualityScore, so a number can be explained after the fact. */
+  quality?: QualityBreakdown;
+  signals?: SummarySignals;
 }
 
 export async function createCard(params: CreateCardParams): Promise<string> {
@@ -28,6 +33,12 @@ export async function createCard(params: CreateCardParams): Promise<string> {
     engagement: params.engagement,
     pipeline_version: params.pipelineVersion,
     quality_score: params.qualityScore ?? null,
+    quality_source_weight: params.quality?.sourceWeight ?? null,
+    quality_content: params.quality?.contentSignals ?? null,
+    quality_generation: params.quality?.generation ?? null,
+    summary_attempts: params.signals?.attempts ?? null,
+    summary_truncated: params.signals?.truncated ?? null,
+    summary_missing_entities: params.signals?.missingEntities ?? null,
   }).select('id').single();
 
   if (error) throw new Error(`Failed to create card for ${params.canonicalUrl}: ${error.message}`);
