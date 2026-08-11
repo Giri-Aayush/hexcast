@@ -68,7 +68,7 @@ vi.mock('../../db/client.js', () => ({
 
 // ── Import under test (after mocks) ─────────────────────────────────────
 
-import { processRawItems } from '../pipeline.js';
+import { processRawItems, roundRobinBySource } from '../pipeline.js';
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -84,6 +84,10 @@ function makeItem(id: string) {
     fetched_at: new Date().toISOString(),
     processed: false,
   };
+}
+
+function makeItemFrom(sourceId: string, id: string) {
+  return { ...makeItem(id), source_id: sourceId };
 }
 
 function makeNormalized(id: string) {
@@ -127,6 +131,91 @@ beforeEach(() => {
 });
 
 // ── Tests ────────────────────────────────────────────────────────────────
+
+describe('roundRobinBySource', () => {
+  it('takes one item per source per pass', () => {
+    const items = [
+      makeItemFrom('forum', 'f1'),
+      makeItemFrom('forum', 'f2'),
+      makeItemFrom('forum', 'f3'),
+      makeItemFrom('blog', 'b1'),
+      makeItemFrom('repo', 'r1'),
+    ];
+
+    expect(roundRobinBySource(items).map((i) => i.id)).toEqual(['f1', 'b1', 'r1', 'f2', 'f3']);
+  });
+
+  it('keeps the caller order within a source', () => {
+    const items = [
+      makeItemFrom('forum', 'f1'),
+      makeItemFrom('forum', 'f2'),
+      makeItemFrom('blog', 'b1'),
+      makeItemFrom('blog', 'b2'),
+    ];
+
+    const forumOrder = roundRobinBySource(items)
+      .filter((i) => i.source_id === 'forum')
+      .map((i) => i.id);
+
+    expect(forumOrder).toEqual(['f1', 'f2']);
+  });
+
+  it('loses nothing and duplicates nothing', () => {
+    const items = [
+      makeItemFrom('a', 'a1'),
+      makeItemFrom('b', 'b1'),
+      makeItemFrom('a', 'a2'),
+      makeItemFrom('c', 'c1'),
+      makeItemFrom('a', 'a3'),
+    ];
+
+    const ordered = roundRobinBySource(items);
+
+    expect(ordered).toHaveLength(items.length);
+    expect(new Set(ordered.map((i) => i.id)).size).toBe(items.length);
+  });
+
+  it('passes through 0 and 1 item unchanged', () => {
+    expect(roundRobinBySource([])).toEqual([]);
+    const single = [makeItemFrom('a', 'a1')];
+    expect(roundRobinBySource(single)).toBe(single);
+  });
+});
+
+describe('processRawItems drain order', () => {
+  it('defaults to oldest-first, so one deep source can swallow the batch', async () => {
+    mocks.mockLoadConfig.mockReturnValue({ ...defaultConfig, batchSize: 3 });
+    mocks.mockGetUnprocessedItems.mockResolvedValue([
+      makeItemFrom('forum', 'f1'),
+      makeItemFrom('forum', 'f2'),
+      makeItemFrom('forum', 'f3'),
+      makeItemFrom('blog', 'b1'),
+    ]);
+    mocks.mockNormalize.mockImplementation((item: { id: string }) => makeNormalized(item.id));
+
+    await processRawItems();
+
+    const summarizedSources = mocks.mockNormalize.mock.calls.map((c) => c[0].source_id);
+    expect(summarizedSources).toEqual(['forum', 'forum', 'forum']);
+  });
+
+  it('spreads a capped batch across sources when round-robin is requested', async () => {
+    mocks.mockLoadConfig.mockReturnValue({ ...defaultConfig, batchSize: 3 });
+    mocks.mockGetUnprocessedItems.mockResolvedValue([
+      makeItemFrom('forum', 'f1'),
+      makeItemFrom('forum', 'f2'),
+      makeItemFrom('forum', 'f3'),
+      makeItemFrom('blog', 'b1'),
+      makeItemFrom('repo', 'r1'),
+    ]);
+    mocks.mockNormalize.mockImplementation((item: { id: string }) => makeNormalized(item.id));
+
+    await processRawItems({ drainOrder: 'round-robin' });
+
+    const summarizedSources = mocks.mockNormalize.mock.calls.map((c) => c[0].source_id);
+    expect(summarizedSources).toEqual(['forum', 'blog', 'repo']);
+  });
+});
 
 describe('processRawItems', () => {
   it('returns zeros when no unprocessed items exist', async () => {

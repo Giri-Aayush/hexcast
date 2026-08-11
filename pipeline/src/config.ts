@@ -31,6 +31,10 @@ export function loadConfig() {
     batchSize: parseInt(process.env.BATCH_SIZE ?? '200', 10),
     // Concurrent AI summarizations — dev=1 (Ollama), prod=10 (OpenAI)
     concurrency: parseInt(process.env.CONCURRENCY ?? (env === 'prod' ? '10' : '1'), 10),
+    // Dev summarization runs against a local Ollama. Overridable so a machine
+    // that already has a different model pulled doesn't need the 4.9 GB default.
+    ollamaBaseUrl: process.env.OLLAMA_BASE_URL ?? 'http://localhost:11434/v1',
+    ollamaModel: process.env.OLLAMA_MODEL ?? 'llama3.1:8b',
   };
 }
 

@@ -1,3 +1,4 @@
+import type { RawItem } from '@hexcast/shared';
 import { getUnprocessedItems, markAsProcessed } from '../db/raw-items.js';
 import { createCard } from '../db/cards.js';
 import { normalize } from './normalizer.js';
@@ -36,15 +37,65 @@ class Semaphore {
   }
 }
 
+// ── Drain order ─────────────────────────────────────────────────────────
+
+export type DrainOrder = 'oldest-first' | 'round-robin';
+
+/**
+ * Reorder a backlog so each pass takes one item per source instead of draining
+ * one source to exhaustion.
+ *
+ * Oldest-first is right for a steady-state feed, where the queue is shallow and
+ * recency is what matters. It is wrong for a cold-start backfill: whichever
+ * source has the deepest backlog swallows the entire batch, so a category with
+ * only a handful of items never gets summarized at all. Round-robin spends the
+ * same compute and touches every source on the way.
+ *
+ * @internal Exported for testing
+ */
+export function roundRobinBySource(items: RawItem[]): RawItem[] {
+  if (items.length <= 1) return items;
+
+  // Insertion order preserves whatever order the caller supplied within a
+  // source, so items stay oldest-first inside each queue.
+  const bySource = new Map<string, RawItem[]>();
+  for (const item of items) {
+    const queue = bySource.get(item.source_id);
+    if (queue) queue.push(item);
+    else bySource.set(item.source_id, [item]);
+  }
+
+  const queues = [...bySource.values()];
+  const ordered: RawItem[] = [];
+  while (ordered.length < items.length) {
+    let took = false;
+    for (const queue of queues) {
+      const next = queue.shift();
+      if (next) {
+        ordered.push(next);
+        took = true;
+      }
+    }
+    if (!took) break; // unreachable while queues hold every item, but never spin
+  }
+
+  return ordered;
+}
+
 // ── Pipeline ────────────────────────────────────────────────────────────
 
-export async function processRawItems(): Promise<{ processed: number; skipped: number; failed: number }> {
+export async function processRawItems(
+  options: { drainOrder?: DrainOrder } = {},
+): Promise<{ processed: number; skipped: number; failed: number }> {
   const config = loadConfig();
   const allItems = await getUnprocessedItems();
+  const drainOrder = options.drainOrder ?? 'oldest-first';
+
+  const queue = drainOrder === 'round-robin' ? roundRobinBySource(allItems) : allItems;
 
   // Batch limiting: only process up to batchSize items per run
   // Remaining items will be picked up in the next pipeline run
-  const items = allItems.slice(0, config.batchSize);
+  const items = queue.slice(0, config.batchSize);
   const deferred = allItems.length - items.length;
 
   logger.info(`Processing ${items.length} of ${allItems.length} unprocessed items (batch size: ${config.batchSize})`);
@@ -52,6 +103,7 @@ export async function processRawItems(): Promise<{ processed: number; skipped: n
     logger.info(`${deferred} items deferred to next run`);
   }
   logger.info(`Mode: ${config.env === 'prod' ? 'GPT-4.1 Mini (V1.3 prompt)' : 'Ollama 8B (V1 prompt)'}`);
+  logger.info(`Drain order: ${drainOrder}`);
   logger.info(`Concurrency: ${config.concurrency} workers`);
 
   let processed = 0;

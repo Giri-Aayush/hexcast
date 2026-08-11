@@ -57,10 +57,12 @@ const defaultText = 'Some article content about Ethereum EIP-7702 proposal and i
 beforeEach(() => {
   vi.clearAllMocks();
 
-  // Default: dev mode (Ollama)
+  // Default: dev mode (Ollama), matching loadConfig()'s defaults
   mocks.mockLoadConfig.mockReturnValue({
     env: 'dev',
     openaiApiKey: undefined,
+    ollamaBaseUrl: 'http://localhost:11434/v1',
+    ollamaModel: 'llama3.1:8b',
   });
 
   // Default: entity preservation passes
@@ -256,7 +258,12 @@ describe('summarize', () => {
   });
 
   it('uses V1 prompt and Ollama config in dev mode', async () => {
-    mocks.mockLoadConfig.mockReturnValue({ env: 'dev', openaiApiKey: undefined });
+    mocks.mockLoadConfig.mockReturnValue({
+      env: 'dev',
+      openaiApiKey: undefined,
+      ollamaBaseUrl: 'http://localhost:11434/v1',
+      ollamaModel: 'llama3.1:8b',
+    });
 
     const summaryText = wordsOf(58);
     mocks.mockCreate.mockResolvedValueOnce(makeResponse(summaryText));
@@ -330,6 +337,34 @@ ${actualSummary}`;
     expect(result.summary).not.toContain('<think>');
     expect(result.summary).not.toContain('</think>');
     expect(result.summary).not.toContain('Key identifiers');
+    expect(result.summary).toBe(actualSummary);
+  });
+
+  it('strips conversational preamble from dev output before counting words', async () => {
+    // llama3.1:8b narrates before answering despite the prompt forbidding it.
+    // The preamble was reaching the card verbatim AND counting toward the
+    // 55-60 word budget, so the real body came out short.
+    const actualSummary = wordsOf(57);
+    mocks.mockCreate.mockResolvedValueOnce(
+      makeResponse(`Here is a 60-word news card summarizing the article:\n\n${actualSummary}`),
+    );
+    mocks.mockCreate.mockResolvedValueOnce(makeResponse('Dev Headline'));
+
+    const result = await summarize(defaultText, defaultTitle);
+
+    expect(result.summary).toBe(actualSummary);
+    // One call for the summary, one for the headline — the 57-word body passed
+    // the strict range on the first attempt, so no retry was needed.
+    expect(mocks.mockCreate).toHaveBeenCalledTimes(2);
+  });
+
+  it('strips a leading "Summary:" label from dev output', async () => {
+    const actualSummary = wordsOf(56);
+    mocks.mockCreate.mockResolvedValueOnce(makeResponse(`Summary: ${actualSummary}`));
+    mocks.mockCreate.mockResolvedValueOnce(makeResponse('Dev Headline'));
+
+    const result = await summarize(defaultText, defaultTitle);
+
     expect(result.summary).toBe(actualSummary);
   });
 
