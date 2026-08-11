@@ -381,6 +381,18 @@ describe('getCardById', () => {
       'Failed to fetch card: row level security violation',
     );
   });
+
+  it('excludes suspended cards', async () => {
+    // Both feed paths already filtered this; the permalink did not, so a suspended
+    // card stayed readable at /card/<id> — the URL people share, and the one place
+    // a bad card is most likely to be seen. Suspension has to hold here too.
+    mockResult.data = makeCard('RESEARCH', 'card-123');
+
+    await getCardById('card-123');
+
+    const chain = mockSupabase.from.mock.results[0].value;
+    expect(chain.eq).toHaveBeenCalledWith('is_suspended', false);
+  });
 });
 
 // ===================================================================
