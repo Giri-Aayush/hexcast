@@ -315,3 +315,433 @@
   right: 16px;
   bottom: calc(88px + max(0px, env(safe-area-inset-bottom)));
 }
+
+/* ── Secondary pages (sources, saved) ─────────────────────────────────── */
+/* Same frame as s3f: a plain heading row on the ground, then content. */
+.hx-page {
+  height: 100dvh;
+  overflow-y: auto;
+  background: var(--ground);
+  color: var(--ink);
+  padding: 14px 15px calc(90px + env(safe-area-inset-bottom));
+}
+
+.hx-page-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 5px 18px;
+}
+
+.hx-page-head h1 {
+  margin: 0;
+  font: 600 24px/1.15 var(--font-sans);
+  letter-spacing: -0.03em;
+}
+
+.hx-page-count {
+  font: 400 10.5px/1 var(--font-mono);
+  letter-spacing: 0.1em;
+  color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Segmented control: two labels, ink slab on the active one. */
+.hx-seg {
+  display: inline-flex;
+  background: rgba(16, 16, 20, 0.06);
+  border-radius: var(--radius-control);
+  padding: 3px;
+  gap: 2px;
+  margin-bottom: 12px;
+}
+
+.hx-seg button {
+  border: 0;
+  background: none;
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 8px;
+  font: 500 10px/1 var(--font-mono);
+  letter-spacing: 0.12em;
+  color: var(--ink-dim);
+  cursor: pointer;
+}
+
+.hx-seg button[aria-selected='true'] {
+  background: var(--ink);
+  color: var(--surface);
+}
+
+.hx-pillrow {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 12px;
+}
+
+.hx-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+  min-height: 30px;
+  padding: 0 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  font: 400 10px/1 var(--font-mono);
+  letter-spacing: 0.1em;
+  color: var(--ink-dim);
+  cursor: pointer;
+}
+
+.hx-pill[aria-pressed='true'] {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--surface);
+}
+
+.hx-pill-mark {
+  width: 6px;
+  height: 6px;
+  background: var(--cat-badge);
+  flex: none;
+}
+
+.hx-showing {
+  font: 400 9.5px/1 var(--font-mono);
+  letter-spacing: 0.12em;
+  color: var(--ink-faint);
+  padding: 2px 5px 14px;
+}
+
+.hx-srcgrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+@media (min-width: 700px) {
+  .hx-srcgrid { grid-template-columns: 1fr 1fr; }
+  .hx-srcgroup { grid-column: 1 / -1; }
+}
+
+@media (min-width: 1100px) {
+  .hx-srcgrid { grid-template-columns: 1fr 1fr 1fr; }
+}
+
+.hx-graderule {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 5px 8px;
+  font: 500 10px/1 var(--font-mono);
+  letter-spacing: 0.14em;
+  color: var(--ink-dim);
+}
+
+.hx-graderule div {
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+/* A source row is the card construction in miniature: the category's tinted
+   surface, its hue on the little mark via the pill above, nothing else coloured. */
+.hx-src {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--cat-surface);
+  border: 1px solid var(--cat-line);
+  border-radius: 14px;
+  padding: 13px 14px 13px 16px;
+}
+
+.hx-src[data-hidden='true'] {
+  background: transparent;
+  border-style: dashed;
+  opacity: 0.55;
+}
+
+.hx-src-main { min-width: 0; }
+
+.hx-src-name {
+  font: 500 14px/1.3 var(--font-sans);
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hx-src-meta {
+  margin-top: 5px;
+  font: 400 9.5px/1 var(--font-mono);
+  letter-spacing: 0.1em;
+  color: var(--cat-meta);
+}
+
+/* Toggle: 40x24, knob slides, ink when on. */
+.hx-switch {
+  flex: none;
+  width: 40px;
+  height: 24px;
+  border: 0;
+  border-radius: 12px;
+  background: rgba(16, 16, 20, 0.14);
+  position: relative;
+  cursor: pointer;
+  padding: 0;
+  transition: background 140ms ease;
+}
+
+.hx-switch span {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 140ms ease;
+}
+
+.hx-switch[aria-checked='true'] {
+  background: var(--ink);
+}
+
+.hx-switch[aria-checked='true'] span {
+  transform: translateX(16px);
+}
+
+.hx-switch:focus-visible {
+  outline: 2px solid var(--link);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hx-switch, .hx-switch span { transition: none; }
+}
+
+/* ── Saved rows ───────────────────────────────────────────────────────── */
+.hx-savedgrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+@media (min-width: 700px) {
+  .hx-savedgrid { grid-template-columns: 1fr 1fr; }
+}
+
+/* The card construction in miniature: category tint, mono meta, no other colour. */
+.hx-saved {
+  background: var(--cat-surface);
+  border: 1px solid var(--cat-line);
+  border-radius: 14px;
+  padding: 13px 16px 14px;
+}
+
+.hx-saved-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 9px;
+  font: 500 9.5px/1 var(--font-mono);
+  letter-spacing: 0.14em;
+  color: var(--cat-meta);
+}
+
+.hx-saved-top button {
+  border: 0;
+  background: none;
+  padding: 6px 0 6px 12px;
+  font: 400 9.5px/1 var(--font-mono);
+  letter-spacing: 0.12em;
+  color: var(--cat-meta);
+  cursor: pointer;
+}
+
+.hx-saved-top button:hover { color: var(--ink); }
+
+.hx-saved-headline {
+  display: block;
+  font: 600 15.5px/1.35 var(--font-sans);
+  letter-spacing: -0.015em;
+  color: var(--ink);
+  text-decoration: none;
+  text-wrap: pretty;
+}
+
+.hx-saved-meta {
+  margin-top: 9px;
+  font: 400 9.5px/1 var(--font-mono);
+  letter-spacing: 0.1em;
+  color: var(--cat-meta);
+}
+
+/* ── Empty states & buttons ───────────────────────────────────────────── */
+.hx-quiet {
+  padding: 48px 0;
+  text-align: center;
+  font: 400 10.5px/1 var(--font-mono);
+  letter-spacing: 0.14em;
+  color: var(--ink-dim);
+}
+
+.hx-empty {
+  padding: 56px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  max-width: 420px;
+}
+
+.hx-empty-rule {
+  width: 28px;
+  height: 2px;
+  background: var(--link);
+  margin-bottom: 18px;
+}
+
+.hx-empty h2 {
+  margin: 0 0 8px;
+  font: 600 19px/1.25 var(--font-sans);
+  letter-spacing: -0.02em;
+}
+
+.hx-empty p {
+  margin: 0 0 20px;
+  font: 400 14px/1.6 var(--font-sans);
+  color: var(--ink-dim);
+  text-wrap: pretty;
+}
+
+.hx-btn-ink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: var(--ink);
+  color: var(--surface);
+  font: 500 12px/1 var(--font-sans);
+  letter-spacing: 0.01em;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.hx-btn-quiet {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 18px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--ink);
+  font: 400 12px/1 var(--font-sans);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+/* ── You page ─────────────────────────────────────────────────────────── */
+.hx-you-id {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 6px 5px 22px;
+}
+
+.hx-you-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-control);
+  background: var(--ink);
+  color: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 500 12px/1 var(--font-mono);
+  letter-spacing: 0.04em;
+}
+
+.hx-you-name {
+  font: 600 16px/1.25 var(--font-sans);
+  letter-spacing: -0.015em;
+}
+
+.hx-you-sub {
+  margin-top: 4px;
+  font: 400 9.5px/1 var(--font-mono);
+  letter-spacing: 0.12em;
+  color: var(--ink-dim);
+}
+
+/* Same construction as the card's stat row: hairline top, mono value, mono label. */
+.hx-statrow {
+  display: flex;
+  gap: 10px;
+  padding: 0 5px 22px;
+}
+
+.hx-statrow > div {
+  flex: 1;
+  border-top: 1px solid var(--line-strong);
+  padding-top: 9px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.hx-statrow span:first-child {
+  font: 500 18px/1 var(--font-mono);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.hx-statrow span:last-child {
+  font: 400 10.5px/1 var(--font-mono);
+  letter-spacing: 0.1em;
+  color: var(--ink-dim);
+}
+
+.hx-about {
+  padding: 26px 5px 0;
+}
+
+.hx-about-section h2 {
+  margin: 0 0 8px;
+  font: 500 10px/1 var(--font-mono);
+  letter-spacing: 0.16em;
+  color: var(--ink-dim);
+}
+
+.hx-about-section p {
+  margin: 0 0 24px;
+  font: 400 14.5px/1.65 var(--font-sans);
+  color: var(--ink);
+  max-width: 60ch;
+  text-wrap: pretty;
+}
+
+.hx-about-links {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 2px 0 28px;
+}
+
+.hx-about-foot {
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+  font: 400 9px/1 var(--font-mono);
+  letter-spacing: 0.14em;
+  color: var(--ink-faint);
+}
