@@ -2,6 +2,7 @@ import { BaseFetcher } from './base.js';
 import type { FetchResult } from '@hexcast/shared';
 import { loadConfig } from '../config.js';
 import { logger } from '../utils/logger.js';
+import { delay } from '../utils/delay.js';
 
 // ── CryptoPanic API v2 (Developer plan) types ────────────────────────
 
@@ -102,7 +103,7 @@ export class CryptoPanicFetcher extends BaseFetcher {
 
         // Delay between pages to stay within rate limits
         if (nextUrl && results.length < MAX_ITEMS) {
-          await new Promise((r) => setTimeout(r, PAGE_DELAY_MS));
+          await delay(PAGE_DELAY_MS);
         }
       } catch (error) {
         logger.error(`${this.config.sourceId}: Fetch error:`, error);

@@ -1,6 +1,7 @@
 import { BaseFetcher } from './base.js';
 import type { FetchResult } from '@hexcast/shared';
 import { logger } from '../utils/logger.js';
+import { delay } from '../utils/delay.js';
 
 // ── DefiLlama API types ────────────────────────────────────────────────
 
@@ -51,6 +52,9 @@ const STABLECOIN_THRESHOLDS = {
   monthlyChangePct: 25, // >25% monthly
   largeCapThreshold: 1_000_000_000, // $1B = "large cap"
 };
+
+// Politeness gap between per-chain requests to api.llama.fi
+const CHAIN_REQUEST_DELAY_MS = 200;
 
 const TRACKED_CHAINS = [
   'Ethereum',
@@ -225,7 +229,7 @@ export class DefiLlamaFetcher extends BaseFetcher {
     for (const chain of TRACKED_CHAINS) {
       try {
         // Add small delay to be polite to the API
-        await new Promise((r) => setTimeout(r, 200));
+        await delay(CHAIN_REQUEST_DELAY_MS);
 
         const res = await fetch(
           `https://api.llama.fi/v2/historicalChainTvl/${encodeURIComponent(chain)}`
