@@ -40,9 +40,16 @@ vi.mock('@/lib/rate-limit', () => ({
 import { POST } from '../route';
 import { auth } from '@clerk/nextjs/server';
 import { checkUserRateLimit } from '@/lib/rate-limit';
+import { supabase } from '@/lib/supabase';
 
 const mockAuth = vi.mocked(auth);
 const mockCheckUserRateLimit = vi.mocked(checkUserRateLimit);
+const mockFrom = vi.mocked(supabase.from);
+
+/** The chain object returned by the Nth supabase.from() call in this request. */
+function chainFor(call: number) {
+  return mockFrom.mock.results[call]?.value;
+}
 
 // --- Helpers ---
 
@@ -310,5 +317,103 @@ describe('POST /api/flags', () => {
 
     const json = await res.json();
     expect(json.error).toContain('card_id');
+  });
+});
+
+/**
+ * Chain order for a successful flag:
+ *   0 flags  — has this person already flagged it
+ *   1 cards  — does the card exist, is it already suspended
+ *   2 flags  — the insert
+ *   3 flags  — headcount for the suspension check
+ *   4 cards  — the suspension, only when the threshold is met
+ */
+describe('auto-suspension', () => {
+  function setup({ count, isSuspended = false }: { count: number; isSuspended?: boolean }) {
+    mockAuth.mockResolvedValue({ userId: 'user_1' } as any);
+    mockChains[0] = { data: null, error: null };
+    mockChains[1] = { data: { id: VALID_UUID, is_suspended: isSuspended }, error: null };
+    mockChains[2] = { data: null, error: null };
+    mockChains[3] = { count, error: null };
+  }
+
+  const flag = () =>
+    POST(
+      req('http://localhost:3000/api/flags', {
+        method: 'POST',
+        body: { card_id: VALID_UUID, reason: 'Inaccurate information' },
+      }),
+    );
+
+  it('suspends the card once enough different people have flagged it', async () => {
+    setup({ count: 3 });
+
+    const res = await flag();
+
+    expect(res.status).toBe(201);
+    expect(await res.json()).toEqual({ success: true, suspended: true });
+    expect(chainFor(4).update).toHaveBeenCalledWith({ is_suspended: true });
+  });
+
+  it('keeps serving the card below the threshold', async () => {
+    setup({ count: 2 });
+
+    const res = await flag();
+
+    expect(res.status).toBe(201);
+    expect(await res.json()).toEqual({ success: true });
+    // Only four calls: no suspension write.
+    expect(mockFrom).toHaveBeenCalledTimes(4);
+  });
+
+  it('never writes flag_count itself — the 003 trigger owns it', async () => {
+    setup({ count: 1 });
+
+    await flag();
+
+    // A manual increment here double-counted every flag and raced two concurrent
+    // flags into one. If this starts failing, that bug is back.
+    for (let i = 0; i < mockFrom.mock.results.length; i++) {
+      const calls = chainFor(i).update.mock.calls;
+      for (const [payload] of calls) {
+        expect(payload).not.toHaveProperty('flag_count');
+      }
+    }
+  });
+
+  it('records the flag but does not re-suspend an already suspended card', async () => {
+    setup({ count: 9, isSuspended: true });
+
+    const res = await flag();
+
+    expect(res.status).toBe(201);
+    expect(await res.json()).toEqual({ success: true, suspended: true });
+    // Insert happened, headcount and suspension were skipped.
+    expect(mockFrom).toHaveBeenCalledTimes(3);
+  });
+
+  it('still records the flag when the headcount query fails', async () => {
+    setup({ count: 0 });
+    mockChains[3] = { count: null, error: { message: 'count failed' } };
+
+    const res = await flag();
+
+    // The flag is safely stored; only the suspension decision was inconclusive.
+    expect(res.status).toBe(201);
+    expect(await res.json()).toEqual({ success: true });
+  });
+
+  it('treats a unique violation as an already-flagged conflict, not a 500', async () => {
+    mockAuth.mockResolvedValue({ userId: 'user_1' } as any);
+    mockChains[0] = { data: null, error: null };
+    mockChains[1] = { data: { id: VALID_UUID, is_suspended: false }, error: null };
+    // Two concurrent flags from one person: the pre-check missed it, the
+    // UNIQUE (card_id, user_id) from migration 018 caught it.
+    mockChains[2] = { data: null, error: { code: '23505', message: 'duplicate key' } };
+
+    const res = await flag();
+
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toContain('Already flagged');
   });
 });
