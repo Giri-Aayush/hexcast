@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { relativeTime, extractDomain } from '../utils';
+import { relativeTime, extractDomain, splitFigures } from '../utils';
 
 describe('relativeTime', () => {
   const NOW = new Date('2025-01-15T12:00:00Z').getTime();
@@ -105,5 +105,59 @@ describe('extractDomain', () => {
   it('returns original for protocol-relative URL', () => {
     // "//example.com/path" is not a valid URL for the URL constructor → catches → returns original
     expect(extractDomain('//example.com/path')).toBe('//example.com/path');
+  });
+});
+
+describe('splitFigures', () => {
+  const figures = (s: string) => splitFigures(s).filter((x) => x.figure).map((x) => x.text);
+  const rebuild = (s: string) => splitFigures(s).map((x) => x.text).join('');
+
+  it('marks spec identifiers', () => {
+    expect(figures('EIP-7702 and ERC-4337 both landed')).toEqual(['EIP-7702', 'ERC-4337']);
+  });
+
+  it('marks versions, dotted and prefixed', () => {
+    expect(figures('Geth v1.16.4 and Nethermind 1.34.1 ship it')).toEqual(['v1.16.4', '1.34.1']);
+  });
+
+  it('marks quantities', () => {
+    expect(figures('1,214,300 EOAs, 71% of them, securing $15B')).toEqual([
+      '1,214,300',
+      '71%',
+      '$15B',
+    ]);
+  });
+
+  it('marks a blob target written as a ratio', () => {
+    expect(figures('revised for the 12/18 blob target')).toEqual(['12/18']);
+  });
+
+  it('leaves small integers as prose', () => {
+    // "four to six subnets" and "2 client patches" are words, not tokens. Setting
+    // every digit in mono would speckle the paragraph.
+    expect(figures('custody rises from 4 to 6 subnets across 2 clients')).toEqual([]);
+  });
+
+  it('never loses or reorders text', () => {
+    const s = 'Since Pectra, 1,214,300 EOAs set EIP-7702 delegations — 71% to four contracts.';
+    expect(rebuild(s)).toBe(s);
+  });
+
+  it('returns a single plain segment when there is nothing to mark', () => {
+    expect(splitFigures('Delegate turnout fell on the treasury vote')).toEqual([
+      { text: 'Delegate turnout fell on the treasury vote', figure: false },
+    ]);
+  });
+
+  it('handles an empty summary', () => {
+    expect(splitFigures('')).toEqual([]);
+  });
+
+  it('is not stateful across calls', () => {
+    // FIGURE_RE is module-level and /g, so a leaked lastIndex would make the second
+    // call skip the match.
+    const s = 'EIP-7702 shipped';
+    expect(figures(s)).toEqual(['EIP-7702']);
+    expect(figures(s)).toEqual(['EIP-7702']);
   });
 });

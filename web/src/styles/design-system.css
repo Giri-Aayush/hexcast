@@ -1,0 +1,178 @@
+/**
+ * Hexcast design system — imported from the Claude Design project
+ * "Hexcast: Ethereum Protocol Feed", file `Hexcast System.dc.html`.
+ *
+ * This replaces the previous dark "neon intelligence terminal" palette. It is a
+ * deliberate departure, not an evolution: the ground is light, the type is Geist
+ * rather than all-monospace, and mono is demoted to identifiers, metadata and
+ * numbers — which is what it is good at, and what the old all-mono setting was
+ * costing us at 60 words of body copy.
+ *
+ * The rule that holds the whole thing together, from the source doc: a card is a
+ * tinted surface, a badge in the saturated hue, a dither field at the top, and two
+ * text tiers. NOTHING ELSE CARRIES COLOUR. That is what keeps eight categories
+ * distinguishable without the feed reading as confetti.
+ */
+
+:root {
+  /* ── Neutrals ────────────────────────────────────────────────────────── */
+  --ink: #101014;
+  --ink-dim: #5c5c64;
+  --ground: #e9e8e4; /* page behind the cards */
+  --surface: #f4f4f2; /* untinted panels: nav, sheets, directory rows */
+
+  --line: rgba(16, 16, 20, 0.1);
+  --line-soft: rgba(16, 16, 20, 0.07);
+  --line-strong: rgba(16, 16, 20, 0.3);
+
+  --link: #2f6bcc;
+  --link-hover: #1f4fa8;
+
+  /* ── Geometry ────────────────────────────────────────────────────────── */
+  --radius-card: 22px;
+  --radius-nav: 16px;
+  --radius-control: 10px;
+  --radius-pill: 13px;
+
+  /* Minimum touch target. The action bar and nav both have to live inside the
+     bottom 138px of a 390x844 viewport, so this is a floor, not a suggestion. */
+  --touch-min: 46px;
+
+  /* ── Type ────────────────────────────────────────────────────────────── */
+  /* The design calls for Geist and Geist Mono. Neither is in next/font/google, and
+     the `geist` package is not installed yet, so --font-geist is currently unset and
+     these resolve down the chain to the OS UI face and the OS mono. That is a
+     deliberate interim state, not an oversight: the layout, scale, tracking and
+     colour are all correct without it, and the faces drop in by defining
+     --font-geist / --font-geist-mono once the package lands. See the follow-up
+     issue — it needs a dependency install, which this branch cannot do safely
+     while node_modules is shared between worktrees. */
+  --font-sans: var(--font-geist, 'Geist'), system-ui, -apple-system, sans-serif;
+  --font-mono: var(--font-geist-mono, 'Geist Mono'), ui-monospace, 'SF Mono', monospace;
+}
+
+/**
+ * Per-category tints. Five values each, and they are not interchangeable:
+ *
+ *   surface  the card ground
+ *   badge    the one saturated use of the hue — the pill, and the dither dots
+ *   dither   dot pitch in px. Varies per category on purpose: it is a second,
+ *            non-colour channel carrying identity, which is what keeps the card
+ *            readable for someone who cannot separate the hues.
+ *   meta     source · tier · age, and stat labels
+ *   body     the summary tier — a near-black carrying a trace of the hue
+ *
+ * Applied by `data-category` so a card sets its whole palette from one attribute
+ * and every child reads tokens.
+ */
+/* Defaults first. `[data-category]` and `[data-category='X']` have identical
+   specificity, so source order is what lets the specific tints below win — and it
+   means an unrecognised category still renders, as neutral grey, instead of losing
+   its surface entirely. Do not move this block below them. */
+[data-category] {
+  --cat-surface: #f0f0f1;
+  --cat-badge: #3f3f46;
+  --cat-badge-ink: #f4f4f5;
+  --cat-dither: 7px;
+  --cat-meta: #5c5c64;
+  --cat-body: #26262b;
+  --cat-line: rgba(16, 16, 20, 0.09);
+  --cat-rule: rgba(16, 16, 20, 0.16);
+  --cat-control: rgba(16, 16, 20, 0.06);
+}
+
+[data-category='RESEARCH'] {
+  --cat-surface: #eef0f7;
+  --cat-badge: #4a5f96;
+  --cat-badge-ink: #eff1f8;
+  --cat-dither: 9px;
+  --cat-meta: #5f6b8a;
+  --cat-body: #242a3c;
+  --cat-line: rgba(26, 34, 64, 0.09);
+  --cat-rule: rgba(26, 34, 64, 0.16);
+  --cat-control: rgba(26, 34, 64, 0.06);
+}
+
+[data-category='EIP_ERC'] {
+  --cat-surface: #e8eefb;
+  --cat-badge: #1f4fa8;
+  --cat-badge-ink: #eef3fd;
+  --cat-dither: 7px;
+  --cat-meta: #55617a;
+  --cat-body: #25293a;
+  --cat-line: rgba(16, 26, 54, 0.09);
+  --cat-rule: rgba(16, 26, 54, 0.16);
+  --cat-control: rgba(16, 26, 54, 0.06);
+}
+
+[data-category='PROTOCOL_CALLS'] {
+  --cat-surface: #e6f2f4;
+  --cat-badge: #16646e;
+  --cat-badge-ink: #e8f6f8;
+  --cat-dither: 6px;
+  --cat-meta: #4f6f75;
+  --cat-body: #1f2b2e;
+  --cat-line: rgba(12, 52, 58, 0.1);
+  --cat-rule: rgba(12, 52, 58, 0.16);
+  --cat-control: rgba(12, 52, 58, 0.06);
+}
+
+[data-category='GOVERNANCE'] {
+  --cat-surface: #f0edfa;
+  --cat-badge: #6149b2;
+  --cat-badge-ink: #f2eefd;
+  --cat-dither: 8px;
+  --cat-meta: #5e5286;
+  --cat-body: #272138;
+  --cat-line: rgba(43, 26, 84, 0.09);
+  --cat-rule: rgba(43, 26, 84, 0.16);
+  --cat-control: rgba(43, 26, 84, 0.06);
+}
+
+[data-category='UPGRADE'] {
+  --cat-surface: #e8f3ec;
+  --cat-badge: #2c7a5c;
+  --cat-badge-ink: #eafaf1;
+  --cat-dither: 6px;
+  --cat-meta: #4e6f5f;
+  --cat-body: #1f2c26;
+  --cat-line: rgba(18, 56, 40, 0.09);
+  --cat-rule: rgba(18, 56, 40, 0.16);
+  --cat-control: rgba(18, 56, 40, 0.06);
+}
+
+[data-category='SECURITY'] {
+  --cat-surface: #f7e9e7;
+  --cat-badge: #a3342c;
+  --cat-badge-ink: #fdeeec;
+  --cat-dither: 5px;
+  --cat-meta: #7d5450;
+  --cat-body: #33201e;
+  --cat-line: rgba(74, 22, 18, 0.09);
+  --cat-rule: rgba(74, 22, 18, 0.16);
+  --cat-control: rgba(74, 22, 18, 0.06);
+}
+
+[data-category='ANNOUNCEMENT'] {
+  --cat-surface: #f0f0f1;
+  --cat-badge: #3f3f46;
+  --cat-badge-ink: #f4f4f5;
+  --cat-dither: 7px;
+  --cat-meta: #5c5c64;
+  --cat-body: #26262b;
+  --cat-line: rgba(16, 16, 20, 0.09);
+  --cat-rule: rgba(16, 16, 20, 0.16);
+  --cat-control: rgba(16, 16, 20, 0.06);
+}
+
+[data-category='METRICS'] {
+  --cat-surface: #f8f1e4;
+  --cat-badge: #8a6516;
+  --cat-badge-ink: #fdf5e8;
+  --cat-dither: 9px;
+  --cat-meta: #6f5a2e;
+  --cat-body: #302713;
+  --cat-line: rgba(58, 42, 8, 0.09);
+  --cat-rule: rgba(58, 42, 8, 0.16);
+  --cat-control: rgba(58, 42, 8, 0.06);
+}

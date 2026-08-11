@@ -1,6 +1,13 @@
 @import "tailwindcss";
 
-/* ── Design System: Neon Intelligence Terminal ──────────────────── */
+/* The imported design system. Loaded alongside the existing tokens rather than
+   replacing them, so components can migrate one at a time instead of the whole feed
+   changing in a single commit. The old "Neon Intelligence Terminal" block below is
+   still what every current component reads; it goes when the last one moves over. */
+@import "../styles/design-system.css";
+@import "../styles/card.css";
+
+/* ── Design System: Neon Intelligence Terminal (being replaced) ─── */
 :root {
   --bg-deep: #06060a;
   --bg-surface: #0c0c14;
