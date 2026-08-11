@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import * as Sentry from '@sentry/nextjs';
 
 export default function Error({
   error,
@@ -10,6 +11,9 @@ export default function Error({
   reset: () => void;
 }) {
   useEffect(() => {
+    // This boundary was catching render errors and only logging them to a console
+    // nobody reads in production. Sentry is a no-op without a DSN.
+    Sentry.captureException(error);
     console.error('Unhandled error:', error);
   }, [error]);
 
