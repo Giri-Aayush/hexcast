@@ -1,14 +1,17 @@
 import { auth } from '@/lib/server-auth';
 import { getCards, getPersonalizedCards } from '@/lib/queries';
 import { CardFeed } from '@/components/card-feed';
+import { cappedLimit } from '@/lib/feed-cap';
 
 export const dynamic = 'force-dynamic';
 
 export default async function Home() {
   const { userId } = await auth();
+  // Dev deploy caps the feed to MAX_FEED_CARDS; unset in prod for the full feed (#59).
+  const limit = cappedLimit(20);
 
   if (userId) {
-    const result = await getPersonalizedCards({ userId, limit: 20 });
+    const result = await getPersonalizedCards({ userId, limit });
     return (
       <CardFeed
         initialCards={result.cards}
@@ -18,6 +21,6 @@ export default async function Home() {
     );
   }
 
-  const cards = await getCards({ limit: 20 });
+  const cards = await getCards({ limit });
   return <CardFeed initialCards={cards} />;
 }
