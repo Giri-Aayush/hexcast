@@ -11,7 +11,12 @@ const ENTITY_PATTERNS: RegExp[] = [
   /EIP-\d+/g,
   /ERC-\d+/g,
   /\d+(\.\d+)?%/g,
-  /\$[\d,.]+[TBMK]?/gi,
+  // Must not swallow trailing punctuation. The old /\$[\d,.]+/ captured "$3,000," and
+  // "$0.9991." including the comma and full stop, so an exact-match check against a
+  // source that writes "$3,000" reported the card's own figure as INVENTED. That was 7
+  // of 34 invention flags on a 60-card audit — about a fifth of them false, which is
+  // enough to make the measure untrustworthy in exactly the place it matters.
+  /\$\d(?:[\d,]*\d)?(?:\.\d+)?[TBMK]?/gi,
   /v\d+\.\d+(\.\d+)?/g,
 ];
 
