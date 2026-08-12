@@ -39,14 +39,21 @@ const { data, error } = await supabase
 
 if (error) throw new Error(error.message);
 
-const items = (data ?? []).map(normalize).filter((n): n is NonNullable<typeof n> => n !== null).slice(0, sampleSize);
+// Apply the SAME thin-source gate the pipeline applies. Without this the benchmark
+// scores items production would never summarize, which flatters or maligns a model on
+// inputs it will never see — and on a 113-char source any model has to invent.
+const items = (data ?? [])
+  .map(normalize)
+  .filter((n): n is NonNullable<typeof n> => n !== null)
+  .filter((n) => n.title.length + n.fullText.length >= config.minSourceChars)
+  .slice(0, sampleSize);
 
 console.log(`\nprovider : ${config.llmBaseUrl}`);
 console.log(`model    : ${config.llmModel}`);
 console.log(`prompt   : ${config.llmPrompt}`);
 console.log(`spacing  : ${config.llmMinIntervalMs}ms`);
 console.log(`extra    : ${JSON.stringify(config.llmExtraBody)}`);
-console.log(`sample   : ${items.length} real raw_items\n`);
+console.log(`sample   : ${items.length} real raw_items, gate >= ${config.minSourceChars} chars\n`);
 
 interface Row {
   words: number;
