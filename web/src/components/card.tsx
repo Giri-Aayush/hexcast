@@ -202,6 +202,21 @@ export const Card = memo(function Card({ card, position }: CardProps) {
         {/* 03 · two lines, survives three */}
         <h2 className="hx-headline">{card.headline}</h2>
 
+        {/* 04 · stat row — conditional. Renders only when the pipeline extracted 2+
+            figures, each guaranteed verbatim from the summary (#55). Capped at 3 so a
+            stray 4th pair can't break the layout. Absent on every card until the
+            extraction migration populates the column. */}
+        {card.stats && card.stats.length >= 2 && (
+          <div className="hx-stats">
+            {card.stats.slice(0, 3).map((s, i) => (
+              <div key={i} className="hx-stat">
+                <span className="hx-stat-value">{s.value}</span>
+                <span className="hx-stat-label">{s.label}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* 05 · identifiers and quantities step into mono so EIP-7702 and v1.16.4
             read as tokens rather than words */}
         <p className="hx-summary">

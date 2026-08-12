@@ -17,6 +17,23 @@ export interface Card {
   reaction_down_count: number;
   is_suspended: boolean;
   pipeline_version: string;
+  /**
+   * Up to 3 figure tiles for the card's stat row, or null when the card has fewer
+   * than 2 stats worth surfacing. Every value is guaranteed to appear verbatim in
+   * the summary (pipeline guard, #55) — the row can only show numbers the source
+   * states, never invented ones. Null until the extraction migration populates it,
+   * so the render below is invisible on older cards. Optional as well as nullable:
+   * until the migration adds the column, `select *` returns no field at all
+   * (undefined), not null.
+   */
+  stats?: CardStat[] | null;
+}
+
+export interface CardStat {
+  /** The figure, verbatim from the summary, e.g. "1.21M" or "71%". */
+  value: string;
+  /** 2-4 word uppercase label, e.g. "ACCOUNTS" or "TO 4 CONTRACTS". */
+  label: string;
 }
 
 export interface EngagementMetrics {

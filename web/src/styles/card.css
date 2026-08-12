@@ -248,3 +248,38 @@
 .hx-feed .snap-item {
   padding: 0 10px 76px;
 }
+
+/* 04 · stat row — three figure tiles between headline and summary (#55). Conditional:
+   the component only renders it when 2+ verbatim-guaranteed stats exist, so this is
+   inert on every card until the extraction populates the column. */
+.hx-stats {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.hx-stat {
+  flex: 1;
+  min-width: 0;
+  border-top: 1px solid var(--cat-rule);
+  padding-top: 9px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.hx-stat-value {
+  font: 500 18px/1 var(--font-mono);
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hx-stat-label {
+  font: 400 10.5px/1.2 var(--font-mono);
+  letter-spacing: 0.1em;
+  color: var(--cat-meta);
+}
