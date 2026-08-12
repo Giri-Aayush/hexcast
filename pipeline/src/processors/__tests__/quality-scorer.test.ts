@@ -215,6 +215,8 @@ describe('generation signals', () => {
     truncated: false,
     entitiesPreserved: true,
     missingEntities: [] as string[],
+    entityPreservationRate: 1,
+    totalEntities: 8,
   };
 
   it('scores a clean first-try summary above a struggling one', () => {
@@ -227,6 +229,8 @@ describe('generation signals', () => {
         truncated: true,
         entitiesPreserved: false,
         missingEntities: ['EIP-8037', 'v2.4.1', '71%'],
+        entityPreservationRate: 0.25, // kept 1 of 4
+        totalEntities: 4,
       },
     });
 
@@ -236,14 +240,32 @@ describe('generation signals', () => {
     expect(good - bad).toBeGreaterThan(0.3);
   });
 
+  it('scores losses in proportion to what the source contained', () => {
+    // The heart of #32: the old formula was 0.25 per loss floored at zero, so losing 3
+    // of 40 identifiers scored the same as losing 3 of 4 — and 13 losses scored the same
+    // as 4. Proportional scoring separates a good summary of a dense document from a bad
+    // summary of a simple one.
+    const dense = scoreQuality({
+      ...base,
+      signals: { ...clean, entitiesPreserved: false, entityPreservationRate: 37 / 40, totalEntities: 40, missingEntities: ['a', 'b', 'c'] },
+    });
+    const simple = scoreQuality({
+      ...base,
+      signals: { ...clean, entitiesPreserved: false, entityPreservationRate: 1 / 4, totalEntities: 4, missingEntities: ['a', 'b', 'c'] },
+    });
+
+    // Same three identifiers lost, very different summaries.
+    expect(dense).toBeGreaterThan(simple);
+  });
+
   it('penalises each lost identifier rather than just failing the check', () => {
     const one = scoreQuality({
       ...base,
-      signals: { ...clean, entitiesPreserved: false, missingEntities: ['EIP-8037'] },
+      signals: { ...clean, entitiesPreserved: false, missingEntities: ['EIP-8037'], entityPreservationRate: 0.75, totalEntities: 4 },
     });
     const three = scoreQuality({
       ...base,
-      signals: { ...clean, entitiesPreserved: false, missingEntities: ['EIP-8037', '71%', 'v2.4.1'] },
+      signals: { ...clean, entitiesPreserved: false, missingEntities: ['EIP-8037', '71%', 'v2.4.1'], entityPreservationRate: 0.25, totalEntities: 4 },
     });
 
     expect(one).toBeGreaterThan(three);
@@ -281,6 +303,8 @@ describe('generation signals', () => {
         truncated: true,
         entitiesPreserved: false,
         missingEntities: ['a', 'b', 'c', 'd'],
+        entityPreservationRate: 0,
+        totalEntities: 4,
       },
     });
 

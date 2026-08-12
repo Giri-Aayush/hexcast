@@ -207,6 +207,10 @@ export interface SummarySignals {
   truncated: boolean;
   entitiesPreserved: boolean;
   missingEntities: string[];
+  /** Fraction of the source's identifiers kept, 0-1. */
+  entityPreservationRate: number;
+  /** How many identifiers the source had. 0 means the rate says nothing useful. */
+  totalEntities: number;
 }
 
 export async function summarize(
@@ -358,6 +362,8 @@ export async function summarize(
       truncated,
       entitiesPreserved: entityCheck.passed,
       missingEntities: entityCheck.missingEntities,
+      entityPreservationRate: entityCheck.preservationRate,
+      totalEntities: entityCheck.totalEntities,
     },
   };
 }

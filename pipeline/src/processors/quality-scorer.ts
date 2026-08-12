@@ -130,28 +130,31 @@ const TARGET_MAX_WORDS = 60;
  * with whether the summary is any *good* was being measured.
  */
 function scoreGeneration(signals: SummarySignals): number {
-  // Landing in range first try is the strongest signal we have that the model
-  // understood the source. Each retry means it needed to be corrected.
+  // Retries used to carry 0.4 of this score. Under the honest-ceiling policy the model
+  // lands first try essentially always — measured 100% — so `attempts` is close to a
+  // constant and discriminates almost nothing. It also measures word-count compliance,
+  // which is a formatting property rather than a factual one. Kept as a small signal
+  // because 3 attempts still says something went wrong.
   const firstTry = signals.attempts <= 1 ? 1 : signals.attempts === 2 ? 0.6 : 0.3;
 
-  // Entity preservation is the closest thing to ground truth: a summary that
-  // dropped EIP-8037 is factually poorer, not just differently worded. Scaled by
-  // how many were lost rather than pass/fail, so losing one ≠ losing five.
-  const entities = signals.entitiesPreserved
-    ? 1
-    : Math.max(0, 1 - signals.missingEntities.length * 0.25);
+  // Entity preservation is the closest thing to ground truth we have, so it carries the
+  // most weight. Proportional to how many identifiers the source actually had: losing 3
+  // of 40 is a good summary of a dense document, losing 3 of 4 is a bad summary of a
+  // simple one. The old flat 0.25-per-loss floored at zero scored those identically, and
+  // scored 13 losses the same as 4.
+  const entities = signals.totalEntities > 0 ? signals.entityPreservationRate : 1;
 
-  // Distance outside the target band, in words, normalised over the widest gap
-  // the accept path allows (20 words below the floor).
+  // Only OVERSHOOT counts against a card now. A short summary is a property of a thin
+  // source, not a defect — penalising it is what pushed the model to pad with invented
+  // detail in the first place.
   const overshoot = Math.max(0, signals.wordCount - TARGET_MAX_WORDS);
-  const undershoot = Math.max(0, TARGET_MIN_WORDS - signals.wordCount);
-  const length = Math.max(0, 1 - (overshoot + undershoot) / 20);
+  const length = Math.max(0, 1 - overshoot / 20);
 
   // Truncation cuts a sentence mid-thought, so it is a defect in its own right
   // rather than just a length miss.
   const truncationPenalty = signals.truncated ? 0.7 : 1;
 
-  return (firstTry * 0.4 + entities * 0.4 + length * 0.2) * truncationPenalty;
+  return (entities * 0.6 + firstTry * 0.2 + length * 0.2) * truncationPenalty;
 }
 
 /**

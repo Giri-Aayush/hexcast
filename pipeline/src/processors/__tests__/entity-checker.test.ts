@@ -56,7 +56,7 @@ describe('extractEntities', () => {
 describe('checkEntityPreservation', () => {
   it('passes when source has no entities', () => {
     const result = checkEntityPreservation('No entities here', 'Summary text');
-    expect(result).toEqual({ passed: true, missingEntities: [] });
+    expect(result).toEqual({ passed: true, missingEntities: [], totalEntities: 0, preservationRate: 1 });
   });
 
   it('passes when all entities are preserved', () => {
@@ -111,6 +111,6 @@ describe('checkEntityPreservation', () => {
 
   it('returns passed: true with empty missing list when both source and summary are empty', () => {
     const result = checkEntityPreservation('', '');
-    expect(result).toEqual({ passed: true, missingEntities: [] });
+    expect(result).toEqual({ passed: true, missingEntities: [], totalEntities: 0, preservationRate: 1 });
   });
 });
