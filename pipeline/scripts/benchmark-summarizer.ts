@@ -124,8 +124,11 @@ console.log('─'.repeat(58));
 // reasoning-capable model this is the number that decides the monthly cost: reasoning
 // tokens bill as OUTPUT, so if reasoning:{exclude:true} is not respected the output
 // count balloons and the cost goes with it.
+// Deliberately hits the PRIMARY directly, not the failover chain: the question is what
+// the primary costs. Wrapped because an exhausted primary should not error the whole
+// benchmark after the summaries have already been measured.
 const probe = items[0];
-if (probe) {
+if (probe) try {
   const llm = new OpenAI({ apiKey: config.llmApiKey, baseURL: config.llmBaseUrl });
   const res = await llm.chat.completions.create({
     ...config.llmExtraBody,
@@ -145,6 +148,9 @@ if (probe) {
       reasoning ? '   <-- BILLED AS OUTPUT, expected ~0' : ''
     }`,
   );
+} catch (e) {
+  console.log('─'.repeat(58));
+  console.log(`token probe skipped: ${e instanceof Error ? e.message.slice(0, 90) : String(e)}`);
 }
 
 console.log('\nRead the summaries above too — these numbers say nothing about whether\nthe prose is any good, and that is what the 60-word format is for.\n');

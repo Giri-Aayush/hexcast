@@ -10,6 +10,70 @@ export type PipelineEnv = 'dev' | 'prod';
 
 export type PromptVersion = 'v1' | 'v1.3';
 
+export interface LlmProvider {
+  /** Shown in logs when a call fails over, so the reason is legible. */
+  label: string;
+  baseUrl: string;
+  apiKey: string;
+  model: string;
+  prompt: PromptVersion;
+  minIntervalMs: number;
+  maxInputChars: number;
+  extraBody: Record<string, unknown>;
+}
+
+/**
+ * Read LLM_FALLBACK_* (and _2_, _3_ if anyone adds them) into the chain behind the
+ * primary. A fallback is only added when it has a base URL; declaring one without a key
+ * throws rather than being skipped, because a silently-dropped fallback looks identical
+ * to a working one right up to the outage it was meant to cover.
+ */
+function buildProviders(opts: { env: PipelineEnv; primary: Omit<LlmProvider, 'label'> }): LlmProvider[] {
+  const providers: LlmProvider[] = [{ label: hostOf(opts.primary.baseUrl), ...opts.primary }];
+
+  for (const slot of ['', '_2', '_3']) {
+    const baseUrl = process.env[`LLM_FALLBACK${slot}_BASE_URL`];
+    if (!baseUrl) continue;
+
+    const apiKey = process.env[`LLM_FALLBACK${slot}_API_KEY`] ?? '';
+    if (!apiKey) {
+      throw new Error(`LLM_FALLBACK${slot}_BASE_URL is set but LLM_FALLBACK${slot}_API_KEY is empty`);
+    }
+
+    const model = process.env[`LLM_FALLBACK${slot}_MODEL`];
+    if (!model) {
+      throw new Error(`LLM_FALLBACK${slot}_BASE_URL is set but LLM_FALLBACK${slot}_MODEL is empty`);
+    }
+
+    providers.push({
+      label: hostOf(baseUrl),
+      baseUrl,
+      apiKey,
+      model,
+      // Prompt and input cap inherit from the primary unless overridden — the fallback is
+      // usually the same model class, and PROMPT.md's lesson is that a DIFFERENT model
+      // deserves a measured prompt rather than an assumed one.
+      prompt: (process.env[`LLM_FALLBACK${slot}_PROMPT`] as PromptVersion | undefined) ?? opts.primary.prompt,
+      minIntervalMs: parseInt(
+        process.env[`LLM_FALLBACK${slot}_MIN_INTERVAL_MS`] ?? String(opts.primary.minIntervalMs),
+        10,
+      ),
+      maxInputChars: opts.primary.maxInputChars,
+      extraBody: parseJson(process.env[`LLM_FALLBACK${slot}_EXTRA_BODY`]),
+    });
+  }
+
+  return providers;
+}
+
+function hostOf(url: string): string {
+  try {
+    return new URL(url).host;
+  } catch {
+    return url;
+  }
+}
+
 /** Malformed JSON here would otherwise fail deep inside the client with no clue why. */
 function parseJson(raw: string | undefined): Record<string, unknown> {
   if (!raw) return {};
@@ -88,6 +152,27 @@ export function loadConfig() {
     // reasoning tokens bill as output and a 60-word factual summary needs none of it.
     // Kept as opaque passthrough so a provider quirk never becomes a code change.
     llmExtraBody: parseJson(process.env.LLM_EXTRA_BODY),
+    /**
+     * Summarization providers in preference order. The first is the primary; the rest
+     * are tried only when one refuses in a way worth retrying elsewhere.
+     *
+     * A list rather than primary+fallback fields because the call path takes a list
+     * anyway, so supporting a longer chain later is config, not a rewrite. Today
+     * production runs a paid uncapped primary with one no-cap fallback: failover fires
+     * on an outage, and only a fallback without a daily wall can carry sustained load.
+     */
+    llmProviders: buildProviders({
+      env,
+      primary: {
+        baseUrl: llmBaseUrl,
+        apiKey: llmApiKey,
+        model: llmModel,
+        prompt: (process.env.LLM_PROMPT ?? (env === 'prod' ? 'v1.3' : 'v1')) as PromptVersion,
+        minIntervalMs: parseInt(process.env.LLM_MIN_INTERVAL_MS ?? (isLocalLlm ? '0' : '150'), 10),
+        maxInputChars: parseInt(process.env.LLM_MAX_INPUT_CHARS ?? (isLocalLlm ? '6000' : '8000'), 10),
+        extraBody: parseJson(process.env.LLM_EXTRA_BODY),
+      },
+    }),
   };
 }
 
