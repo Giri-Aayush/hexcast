@@ -1,0 +1,31 @@
+name: DB row counts
+
+# Manual-only. Prints row COUNTS for the user-data tables — no row contents.
+# Exists because production credentials live only in GitHub secrets, and decisions
+# like the auth migration (#25) hinge on whether these tables are empty: swapping
+# identity providers over non-empty tables silently orphans every row.
+on:
+  workflow_dispatch:
+
+jobs:
+  counts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Count user-data rows
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          set -euo pipefail
+          for t in saved_cards card_views reactions feedback flags push_subscriptions cards; do
+            # PostgREST returns the total in the content-range header; Range 0-0
+            # keeps the response to a single row that we discard.
+            n=$(curl -s -D - -o /dev/null \
+              "$SUPABASE_URL/rest/v1/$t?select=id" \
+              -H "apikey: $SUPABASE_SERVICE_KEY" \
+              -H "Authorization: Bearer $SUPABASE_SERVICE_KEY" \
+              -H "Prefer: count=exact" -H "Range: 0-0" \
+              | tr -d '\r' | awk -F/ 'tolower($0) ~ /^content-range:/ {print $2}')
+            echo "$t: ${n:-QUERY_FAILED}"
+          done
