@@ -249,7 +249,7 @@ describe('news ordering and recency', () => {
 
     expect(result).toEqual({ processed: 0, skipped: 1, failed: 0 });
     expect(mocks.mockSummarize).not.toHaveBeenCalled();
-    expect(mocks.mockMarkAsProcessed).toHaveBeenCalledWith('ancient');
+    expect(mocks.mockMarkAsProcessed).toHaveBeenCalledWith('ancient', 'tooOld');
   });
 
   it('keeps an item inside the window', async () => {
@@ -280,8 +280,10 @@ describe('thin-source gate', () => {
     expect(result).toEqual({ processed: 0, skipped: 1, failed: 0 });
     expect(mocks.mockSummarize).not.toHaveBeenCalled();
     // Marked processed so it does not clog the queue forever — the source text will
-    // not grow later.
-    expect(mocks.mockMarkAsProcessed).toHaveBeenCalledWith('thin-1');
+    // not grow later. The reason is stored because the GATE can change even though the
+    // text cannot: this is the exact skip that hid all 18 DefiLlama items, and
+    // skip_reason is what makes them findable if the thin gate moves again.
+    expect(mocks.mockMarkAsProcessed).toHaveBeenCalledWith('thin-1', 'tooThin');
   });
 
   it('keeps a short source that is dense with identifiers', async () => {
@@ -419,7 +421,7 @@ describe('processRawItems', () => {
     const result = await processRawItems();
 
     expect(result).toEqual({ processed: 0, skipped: 1, failed: 0 });
-    expect(mocks.mockMarkAsProcessed).toHaveBeenCalledWith('item-1');
+    expect(mocks.mockMarkAsProcessed).toHaveBeenCalledWith('item-1', 'empty');
     expect(mocks.mockSummarize).not.toHaveBeenCalled();
   });
 
@@ -433,7 +435,7 @@ describe('processRawItems', () => {
     const result = await processRawItems();
 
     expect(result).toEqual({ processed: 0, skipped: 1, failed: 0 });
-    expect(mocks.mockMarkAsProcessed).toHaveBeenCalledWith('item-1');
+    expect(mocks.mockMarkAsProcessed).toHaveBeenCalledWith('item-1', 'duplicate');
     expect(mocks.mockIsDuplicate).toHaveBeenCalledWith(
       normalized.canonicalUrl,
       normalized.title,
@@ -468,7 +470,7 @@ describe('processRawItems', () => {
     const result = await processRawItems();
 
     expect(result).toEqual({ processed: 0, skipped: 1, failed: 0 });
-    expect(mocks.mockMarkAsProcessed).toHaveBeenCalledWith('item-1');
+    expect(mocks.mockMarkAsProcessed).toHaveBeenCalledWith('item-1', 'lowQuality');
     expect(mocks.mockCreateCard).not.toHaveBeenCalled();
     expect(mocks.mockShouldAutoSuppress).toHaveBeenCalledWith(0.1);
   });
@@ -661,9 +663,11 @@ describe('processRawItems', () => {
     const result = await processRawItems();
 
     expect(result).toEqual({ processed: 1, skipped: 1, failed: 1 });
-    // success and dup are marked as processed; fail is not
+    // success and dup are marked as processed; fail is not. The single-argument call is
+    // the assertion that a card-producing item stores no reason — skip_reason IS NULL is
+    // what separates "processed fine" from "rejected by a gate".
     expect(mocks.mockMarkAsProcessed).toHaveBeenCalledWith('success');
-    expect(mocks.mockMarkAsProcessed).toHaveBeenCalledWith('dup');
+    expect(mocks.mockMarkAsProcessed).toHaveBeenCalledWith('dup', 'duplicate');
     expect(mocks.mockMarkAsProcessed).not.toHaveBeenCalledWith('fail');
   });
 });

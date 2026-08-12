@@ -1,6 +1,9 @@
 import { supabase } from './client.js';
 import type { FetchResult, RawItem } from '@hexcast/shared';
 
+/** Why an item produced no card. Persisted so gate changes are recoverable. */
+export type SkipReason = 'empty' | 'tooOld' | 'tooThin' | 'duplicate' | 'lowQuality';
+
 export async function insertRawItem(result: FetchResult): Promise<void> {
   const { error } = await supabase
     .from('raw_items')
@@ -44,10 +47,15 @@ export async function getUnprocessedItems(): Promise<RawItem[]> {
   return allItems;
 }
 
-export async function markAsProcessed(id: string): Promise<void> {
+/**
+ * Mark an item done. `skipReason` records WHY it produced no card, so a later gate
+ * change can re-evaluate exactly the items that gate rejected — without it, a fixed
+ * gate cannot rescue what the old one already skipped.
+ */
+export async function markAsProcessed(id: string, skipReason?: SkipReason): Promise<void> {
   const { error } = await supabase
     .from('raw_items')
-    .update({ processed: true })
+    .update({ processed: true, skip_reason: skipReason ?? null })
     .eq('id', id);
 
   if (error) throw new Error(`Failed to mark item ${id} as processed: ${error.message}`);
