@@ -153,6 +153,10 @@ export function loadConfig() {
     // 90 rather than 30 days because a six-week-old EIP discussion is still interesting
     // to this audience, just not breaking.
     maxSourceAgeDays: parseInt(process.env.MAX_SOURCE_AGE_DAYS ?? '90', 10),
+    // A short source with several hard identifiers is summarizable; a short source with
+    // none is not. Character count alone could not tell those apart and was silently
+    // excluding an entire category — see the gate in processRawItems.
+    minSourceIdentifiers: parseInt(process.env.MIN_SOURCE_IDENTIFIERS ?? '3', 10),
     // Extra JSON merged into every completions request, for params only one provider
     // understands — OpenRouter's reasoning:{exclude:true} being the case in hand, since
     // reasoning tokens bill as output and a 60-word factual summary needs none of it.

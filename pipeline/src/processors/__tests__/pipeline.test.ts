@@ -117,6 +117,7 @@ const defaultSignals = {
 const defaultConfig = {
   minSourceChars: 0, // most tests are not about the gate
   maxSourceAgeDays: 36_500, // ...nor about recency
+  minSourceIdentifiers: 3,
   batchSize: 100,
   concurrency: 1,
   dryRun: false,
@@ -281,6 +282,41 @@ describe('thin-source gate', () => {
     // Marked processed so it does not clog the queue forever — the source text will
     // not grow later.
     expect(mocks.mockMarkAsProcessed).toHaveBeenCalledWith('thin-1');
+  });
+
+  it('keeps a short source that is dense with identifiers', async () => {
+    // A DefiLlama metrics item is ~273 chars with ~8 identifiers. The numbers ARE the
+    // story, so a character floor alone was silently excluding the entire METRICS
+    // category — 21 of 21 items in window, none passing.
+    mocks.mockLoadConfig.mockReturnValue({ ...defaultConfig, minSourceChars: 600, minSourceIdentifiers: 3 });
+    mocks.mockGetUnprocessedItems.mockResolvedValue([makeItem('metrics-1')]);
+    mocks.mockNormalize.mockReturnValue({
+      ...makeNormalized('metrics-1'),
+      title: 'Stablecoin supply update',
+      fullText: 'Total stablecoin supply reached $168.4B, up 3.2%. USDT holds 62.1%, USDC 24.8%, DAI $5.3B.',
+    });
+
+    const result = await processRawItems();
+
+    expect(result).toEqual({ processed: 1, skipped: 0, failed: 0 });
+    expect(mocks.mockSummarize).toHaveBeenCalled();
+  });
+
+  it('still skips a short source with no identifiers at all', async () => {
+    // The real case the gate exists for: 114 chars, zero identifiers, and it produced a
+    // card asserting EIP-4844 and a March activation that appear nowhere in the source.
+    mocks.mockLoadConfig.mockReturnValue({ ...defaultConfig, minSourceChars: 600, minSourceIdentifiers: 3 });
+    mocks.mockGetUnprocessedItems.mockResolvedValue([makeItem('dencun')]);
+    mocks.mockNormalize.mockReturnValue({
+      ...makeNormalized('dencun'),
+      title: 'Preparing for the Dencun Hard Fork',
+      fullText: 'In this post we detail the engineering effort preparing for the Dencun hard fork',
+    });
+
+    const result = await processRawItems();
+
+    expect(result).toEqual({ processed: 0, skipped: 1, failed: 0 });
+    expect(mocks.mockSummarize).not.toHaveBeenCalled();
   });
 
   it('summarizes an item with enough source behind it', async () => {
