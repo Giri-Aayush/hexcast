@@ -36,6 +36,9 @@ export const Card = memo(function Card({ card, position }: CardProps) {
   const [flagStep, setFlagStep] = useState<'idle' | 'reason' | 'confirm' | 'done'>('idle');
   const [flagReason, setFlagReason] = useState('');
   const [flagCustom, setFlagCustom] = useState('');
+  // A stored image URL that 404s (deleted from the bucket, say) falls back to the
+  // dither rather than showing a broken frame — the band stays intact either way.
+  const [imgFailed, setImgFailed] = useState(false);
   const shareRef = useRef<HTMLDivElement>(null);
 
   const { isSignedIn } = useUser();
@@ -185,8 +188,24 @@ export const Card = memo(function Card({ card, position }: CardProps) {
 
   return (
     <article className="hx-card h-full" data-category={card.category}>
-      {/* 01 · dither field, masked to nothing before the badge reaches it */}
-      <div className="hx-dither" aria-hidden="true" />
+      {/* 01 · header field. The generated image when the pipeline produced one (#70),
+          otherwise the dither texture. Both fill the same 128px band with the same
+          bottom fade, so the badge overlaps a faded lower edge and the layout never
+          shifts between imaged and un-imaged cards. Decorative either way — the image
+          is abstract texture, not information — so it's hidden from assistive tech. */}
+      {card.image_url && !imgFailed ? (
+        <img
+          className="hx-cardimg"
+          src={card.image_url}
+          alt=""
+          aria-hidden="true"
+          loading="lazy"
+          decoding="async"
+          onError={() => setImgFailed(true)}
+        />
+      ) : (
+        <div className="hx-dither" aria-hidden="true" />
+      )}
 
       {/* 02 · badge overlaps the faded lower half of the field */}
       <div className="hx-badge-row">

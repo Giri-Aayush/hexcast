@@ -27,6 +27,15 @@ export interface Card {
    * (undefined), not null.
    */
   stats?: CardStat[] | null;
+  /**
+   * Public URL of the card's header image, generated once at card creation and kept
+   * for the card's life (#70). Abstract, category-tinted texture — never a literal
+   * depiction of the event — so it can't reintroduce the fabrication problem in
+   * visual form. Null when generation was skipped or failed; the render falls back
+   * to the dither field. Optional as well as nullable for the same reason as `stats`:
+   * before the migration adds the column, `select *` returns no field at all.
+   */
+  image_url?: string | null;
 }
 
 export interface CardStat {
