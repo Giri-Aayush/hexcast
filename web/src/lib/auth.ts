@@ -9,10 +9,10 @@ import { Pool } from 'pg';
  * environment stays a clean no-op instead of a plugin erroring at runtime.
  * Get keys from the Better Auth Infra dashboard; set all three or none.
  */
-const infraConfigured =
-  !!process.env.BETTER_AUTH_API_URL &&
-  !!process.env.BETTER_AUTH_KV_URL &&
-  !!process.env.BETTER_AUTH_API_KEY;
+// Gate on the API key alone: the onboarding flow hands out a key and expects
+// bare dash() to work, with the URLs defaulting inside the plugin. Requiring all
+// three would leave the plugin dormant after a by-the-book onboarding.
+const infraConfigured = !!process.env.BETTER_AUTH_API_KEY;
 
 const infraPlugins = infraConfigured
   ? [
