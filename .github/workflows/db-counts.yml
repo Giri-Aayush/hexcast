@@ -20,9 +20,11 @@ jobs:
           set -euo pipefail
           for t in saved_cards card_views reactions feedback flags push_subscriptions cards; do
             # PostgREST returns the total in the content-range header; Range 0-0
-            # keeps the response to a single row that we discard.
+            # keeps the response to a single row that we discard. select=* rather
+            # than select=id because saved_cards and card_views have composite
+            # primary keys and no id column — select=id 400s on them.
             n=$(curl -s -D - -o /dev/null \
-              "$SUPABASE_URL/rest/v1/$t?select=id" \
+              "$SUPABASE_URL/rest/v1/$t?select=*" \
               -H "apikey: $SUPABASE_SERVICE_KEY" \
               -H "Authorization: Bearer $SUPABASE_SERVICE_KEY" \
               -H "Prefer: count=exact" -H "Range: 0-0" \
