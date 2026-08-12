@@ -154,7 +154,16 @@ function scoreGeneration(signals: SummarySignals): number {
   // rather than just a length miss.
   const truncationPenalty = signals.truncated ? 0.7 : 1;
 
-  return (entities * 0.6 + firstTry * 0.2 + length * 0.2) * truncationPenalty;
+  // Invention is worse than omission and is penalised harder than anything else here. A
+  // missing identifier makes a card less useful; an invented one makes it WRONG, and a
+  // reader cannot tell a fabricated EIP number from a real one. 0.5 for the first, and
+  // further for each additional, so a card asserting several invented facts falls far
+  // enough to be visible in the distribution.
+  const inventionPenalty = signals.inventedEntities.length === 0
+    ? 1
+    : Math.max(0.2, 0.5 - (signals.inventedEntities.length - 1) * 0.1);
+
+  return (entities * 0.6 + firstTry * 0.2 + length * 0.2) * truncationPenalty * inventionPenalty;
 }
 
 /**

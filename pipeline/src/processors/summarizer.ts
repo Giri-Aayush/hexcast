@@ -1,6 +1,6 @@
 import OpenAI from 'openai';
 import { logger } from '../utils/logger.js';
-import { checkEntityPreservation } from './entity-checker.js';
+import { checkEntityPreservation, checkInvention } from './entity-checker.js';
 import { loadConfig, type LlmProvider } from '../config.js';
 
 // ── AI Client Setup ────────────────────────────────────────────────────
@@ -93,7 +93,9 @@ Style rules:
 - Open with the single most important fact or action — never start with "The".
 - Use short, declarative sentences. Active voice only.
 - Front-load numbers: dollar amounts, percentages, version numbers, EIP/ERC identifiers.
-- Preserve exact technical identifiers as they appear (EIP-7702 not "EIP 7702").
+- Preserve technical identifiers exactly as the content writes them, including hyphens.
+- Use ONLY identifiers that appear in the content below. Never introduce an EIP number,
+  version, percentage or dollar figure that the content does not state.
 - Include who did it, what happened, and why it matters — in that order.
 - No editorializing, no adjectives like "significant" or "important".
 - No markdown, no bullet points, no preamble.
@@ -113,12 +115,14 @@ function buildUserPromptV13(content: string): string {
   return `Summarize this content in no more than 60 words — fewer if the content does
 not support 60. Never pad or invent detail to reach a length.
 
-Step 1: In a <think> block, list all technical identifiers you MUST preserve:
-  - EIP/ERC numbers (e.g., EIP-7702)
-  - Version numbers (e.g., v5.4.0)
-  - Dollar amounts (e.g., $8.7M)
-  - Percentages (e.g., 92.4%)
+Step 1: In a <think> block, list the technical identifiers that appear IN THE CONTENT and
+must be preserved:
+  - EIP and ERC numbers
+  - Version numbers
+  - Dollar amounts
+  - Percentages
   - Named authors or entities
+List only identifiers you can find in the content below. Do not invent examples.
 
 Step 2: After </think>, write up to 60 words incorporating as many identifiers as possible.
 
@@ -207,6 +211,8 @@ export interface SummarySignals {
   truncated: boolean;
   entitiesPreserved: boolean;
   missingEntities: string[];
+  /** Identifiers the summary asserts that the source never states. */
+  inventedEntities: string[];
   /** Fraction of the source's identifiers kept, 0-1. */
   entityPreservationRate: number;
   /** How many identifiers the source had. 0 means the rate says nothing useful. */
@@ -258,11 +264,15 @@ export async function summarize(
           : `\n\nIMPORTANT: Your previous summary was only ${lastWordCount} words, which is too short to be useful. Include the concrete facts the content states.`;
     }
 
-    // On retry: check entity preservation from previous attempt
+    // On retry: feed back both directions — what was dropped, and what was made up.
     if (attempt > 1 && summary) {
       const entityCheck = checkEntityPreservation(truncatedText, summary);
       if (!entityCheck.passed && entityCheck.missingEntities.length > 0) {
         prompt += `\nYou MUST include these entities: ${entityCheck.missingEntities.join(', ')}`;
+      }
+      const invention = checkInvention(truncatedText, summary);
+      if (!invention.clean) {
+        prompt += `\nDo NOT state these — they do not appear in the content: ${invention.inventedEntities.join(', ')}`;
       }
     }
 
@@ -327,11 +337,19 @@ export async function summarize(
     logger.warn(`Post-loop safety: truncated from ${lastWordCount} to ${countWords(summary)} words`);
   }
 
-  // Final entity preservation check — log warning but don't block
+  // Final checks — logged, not blocking. Suppressing on invention is a policy decision
+  // rather than a mechanical one, so the signal is recorded and scored instead.
   const entityCheck = checkEntityPreservation(truncatedText, summary);
   if (!entityCheck.passed) {
     logger.warn(
       `Entity preservation check failed: missing [${entityCheck.missingEntities.join(', ')}]`
+    );
+  }
+
+  const invention = checkInvention(truncatedText, summary);
+  if (!invention.clean) {
+    logger.warn(
+      `INVENTED identifiers not present in source: [${invention.inventedEntities.join(', ')}]`
     );
   }
 
@@ -362,6 +380,7 @@ export async function summarize(
       truncated,
       entitiesPreserved: entityCheck.passed,
       missingEntities: entityCheck.missingEntities,
+      inventedEntities: invention.inventedEntities,
       entityPreservationRate: entityCheck.preservationRate,
       totalEntities: entityCheck.totalEntities,
     },

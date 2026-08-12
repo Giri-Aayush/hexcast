@@ -54,3 +54,32 @@ export function checkEntityPreservation(
     preservationRate,
   };
 }
+
+export interface InventionCheckResult {
+  clean: boolean;
+  /** Identifiers asserted by the summary that do not appear in the source at all. */
+  inventedEntities: string[];
+}
+
+/**
+ * The preservation check run backwards: which identifiers does the summary assert that
+ * the source never states?
+ *
+ * Preservation catches OMISSION — facts the summary dropped. This catches INVENTION —
+ * facts the summary made up, which is the more damaging direction for a digest that
+ * promises factual accuracy. A reader cannot tell an invented EIP number from a real one.
+ *
+ * The case that motivated it: a card claimed "EIP-4844 proto-danksharding, lowering blob
+ * transaction fees, timeline confirmed for March activation" from a source whose entire
+ * body was "In this post we detail the engineering effort preparing for the Dencun hard
+ * fork". Every identifier in that card was invented.
+ *
+ * Deliberately narrow. It only judges the identifier classes the extractor recognises —
+ * EIP/ERC numbers, percentages, dollar amounts, version strings — because those are
+ * checkable by exact string match against the source. Invented PROSE is not detectable
+ * this way and this makes no claim to catch it.
+ */
+export function checkInvention(sourceText: string, summary: string): InventionCheckResult {
+  const inventedEntities = extractEntities(summary).filter((entity) => !sourceText.includes(entity));
+  return { clean: inventedEntities.length === 0, inventedEntities };
+}
