@@ -112,7 +112,17 @@ export async function processRawItems(
   const requestedOrder = options.drainOrder ?? 'auto';
   const drainOrder = resolveDrainOrder(requestedOrder, allItems.length, config.batchSize);
 
-  const queue = drainOrder === 'round-robin' ? roundRobinBySource(allItems) : allItems;
+  // Newest first. This is a news product: on a cold backfill the freshest items must
+  // become cards first, or the feed leads with stale material until the queue catches up
+  // hours later. Sorting before the round-robin keeps BOTH properties — newest-first
+  // within each source, and one item per source per pass for category variety — because
+  // roundRobinBySource preserves whatever order it is handed inside each queue.
+  const byNewest = [...allItems].sort(
+    (a, b) => new Date(b.published_at ?? b.fetched_at).getTime()
+      - new Date(a.published_at ?? a.fetched_at).getTime(),
+  );
+
+  const queue = drainOrder === 'round-robin' ? roundRobinBySource(byNewest) : byNewest;
 
   // Batch limiting: only process up to batchSize items per run
   // Remaining items will be picked up in the next pipeline run
@@ -149,7 +159,17 @@ export async function processRawItems(
         return;
       }
 
-      // 2. Skip sources too thin to summarize honestly. A 14-word source cannot yield
+      // 2. Skip anything too old to be news. It stays in raw_items as archive.
+      const ageDays =
+        (Date.now() - new Date(normalized.publishedAt).getTime()) / 86_400_000;
+      if (Number.isFinite(ageDays) && ageDays > config.maxSourceAgeDays) {
+        logger.debug(`Skipping item ${item.id}: published ${Math.round(ageDays)} days ago`);
+        await markAsProcessed(item.id);
+        skipped++;
+        return;
+      }
+
+      // 3. Skip sources too thin to summarize honestly. A 14-word source cannot yield
       //    a 60-word factual card; the model fills the gap by inventing, and an
       //    invented fact is worse than a missing card on a product that promises
       //    accuracy. Measured on the real corpus: ~13% of items are under 200 chars.
@@ -162,7 +182,7 @@ export async function processRawItems(
         return;
       }
 
-      // 3. Deduplicate
+      // 4. Deduplicate
       const duplicate = await isDuplicate(
         normalized.canonicalUrl,
         normalized.title,
@@ -175,10 +195,10 @@ export async function processRawItems(
         return;
       }
 
-      // 4. Classify
+      // 5. Classify
       const category = classify(normalized.sourceId);
 
-      // 5. Summarize
+      // 6. Summarize
       if (config.dryRun) {
         logger.info(`[DRY RUN] Would summarize: ${normalized.title}`);
         skipped++;
@@ -187,7 +207,7 @@ export async function processRawItems(
 
       const { headline, summary, signals } = await summarize(normalized.fullText, normalized.title);
 
-      // 6. Quality score
+      // 7. Quality score
       const quality = scoreQualityBreakdown({
         sourceId: normalized.sourceId,
         headline,
@@ -205,7 +225,7 @@ export async function processRawItems(
         return;
       }
 
-      // 7. Create card
+      // 8. Create card
       const cardId = await createCard({
         sourceId: normalized.sourceId,
         canonicalUrl: normalized.canonicalUrl,
@@ -222,7 +242,7 @@ export async function processRawItems(
         signals,
       });
 
-      // 8. Queue high-priority items (SECURITY / UPGRADE)
+      // 9. Queue high-priority items (SECURITY / UPGRADE)
       if (category === 'SECURITY' || category === 'UPGRADE') {
         const { error: hpqError } = await supabase
           .from('high_priority_queue')
