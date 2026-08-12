@@ -10,6 +10,16 @@ export type PipelineEnv = 'dev' | 'prod';
 
 export type PromptVersion = 'v1' | 'v1.3';
 
+/** Malformed JSON here would otherwise fail deep inside the client with no clue why. */
+function parseJson(raw: string | undefined): Record<string, unknown> {
+  if (!raw) return {};
+  try {
+    return JSON.parse(raw) as Record<string, unknown>;
+  } catch {
+    throw new Error(`LLM_EXTRA_BODY is not valid JSON: ${raw}`);
+  }
+}
+
 export function loadConfig() {
   const env = (process.env.PIPELINE_ENV ?? 'dev') as PipelineEnv;
 
@@ -73,6 +83,11 @@ export function loadConfig() {
     // source, so even a 40-60 word card is a real compression rather than a restatement
     // padded out. Lowering this buys more cards and pays for them in invented detail.
     minSourceChars: parseInt(process.env.MIN_SOURCE_CHARS ?? '600', 10),
+    // Extra JSON merged into every completions request, for params only one provider
+    // understands — OpenRouter's reasoning:{exclude:true} being the case in hand, since
+    // reasoning tokens bill as output and a 60-word factual summary needs none of it.
+    // Kept as opaque passthrough so a provider quirk never becomes a code change.
+    llmExtraBody: parseJson(process.env.LLM_EXTRA_BODY),
   };
 }
 

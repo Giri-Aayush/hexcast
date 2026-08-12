@@ -17,6 +17,7 @@
  * safe to run against any database.
  */
 import { createClient } from '@supabase/supabase-js';
+import OpenAI from 'openai';
 import { summarize } from '../src/processors/summarizer.js';
 import { normalize } from '../src/processors/normalizer.js';
 import { loadConfig } from '../src/config.js';
@@ -44,6 +45,7 @@ console.log(`\nprovider : ${config.llmBaseUrl}`);
 console.log(`model    : ${config.llmModel}`);
 console.log(`prompt   : ${config.llmPrompt}`);
 console.log(`spacing  : ${config.llmMinIntervalMs}ms`);
+console.log(`extra    : ${JSON.stringify(config.llmExtraBody)}`);
 console.log(`sample   : ${items.length} real raw_items\n`);
 
 interface Row {
@@ -111,4 +113,31 @@ console.log(`avg identifiers lost ${avg((r) => r.missing)}`);
 console.log(`avg seconds/card     ${avg((r) => r.ms / 1000)}`);
 console.log(`failed               ${failures}`);
 console.log('─'.repeat(58));
+// summarize() does not surface usage, so bill one representative call directly. For a
+// reasoning-capable model this is the number that decides the monthly cost: reasoning
+// tokens bill as OUTPUT, so if reasoning:{exclude:true} is not respected the output
+// count balloons and the cost goes with it.
+const probe = items[0];
+if (probe) {
+  const llm = new OpenAI({ apiKey: config.llmApiKey, baseURL: config.llmBaseUrl });
+  const res = await llm.chat.completions.create({
+    ...config.llmExtraBody,
+    model: config.llmModel,
+    max_tokens: 300,
+    messages: [{ role: 'user', content: `Summarize in under 60 words:\n\n${probe.fullText.slice(0, config.llmMaxInputChars)}` }],
+  });
+  const u = res.usage as (typeof res.usage & {
+    completion_tokens_details?: { reasoning_tokens?: number };
+  }) | undefined;
+  const reasoning = u?.completion_tokens_details?.reasoning_tokens;
+  console.log('─'.repeat(58));
+  console.log(`prompt tokens        ${u?.prompt_tokens ?? '?'}`);
+  console.log(`completion tokens    ${u?.completion_tokens ?? '?'}`);
+  console.log(
+    `reasoning tokens     ${reasoning ?? 'not reported'}${
+      reasoning ? '   <-- BILLED AS OUTPUT, expected ~0' : ''
+    }`,
+  );
+}
+
 console.log('\nRead the summaries above too — these numbers say nothing about whether\nthe prose is any good, and that is what the 60-word format is for.\n');

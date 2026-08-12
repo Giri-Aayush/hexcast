@@ -12,6 +12,7 @@ interface LlmClient {
   /** Gap enforced between calls, ms. 0 for a local endpoint. */
   minIntervalMs: number;
   maxInputChars: number;
+  extraBody: Record<string, unknown>;
 }
 
 /**
@@ -28,6 +29,7 @@ function createClient(): LlmClient {
     prompt: config.llmPrompt,
     minIntervalMs: config.llmMinIntervalMs,
     maxInputChars: config.llmMaxInputChars,
+    extraBody: config.llmExtraBody,
   };
 }
 
@@ -166,7 +168,8 @@ export async function summarize(
   fullText: string,
   title: string
 ): Promise<{ headline: string; summary: string; signals: SummarySignals }> {
-  const { client, model, prompt: promptVersion, minIntervalMs, maxInputChars } = createClient();
+  const { client, model, prompt: promptVersion, minIntervalMs, maxInputChars, extraBody } =
+    createClient();
 
   logger.debug(`Summarizing with ${model} (${promptVersion})`);
 
@@ -211,6 +214,7 @@ export async function summarize(
     await rateLimit(minIntervalMs);
 
     const response = await client.chat.completions.create({
+      ...extraBody,
       model,
       max_tokens: 300,
       messages: [
@@ -284,6 +288,7 @@ export async function summarize(
   await rateLimit(minIntervalMs);
 
   const headlineResponse = await client.chat.completions.create({
+    ...extraBody,
     model,
     max_tokens: 50,
     messages: [
