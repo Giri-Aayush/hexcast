@@ -30,6 +30,10 @@ const { data, error } = await supabase
   .from('raw_items')
   .select('*')
   .eq('processed', false)
+  // Deterministic order matters: without it Postgres can hand back different rows
+  // each run, and two prompt variants would be scored on different items — which
+  // makes the comparison meaningless in a way that is invisible in the output.
+  .order('id', { ascending: true })
   .limit(sampleSize * 2); // over-fetch: normalize() rejects some as empty
 
 if (error) throw new Error(error.message);
