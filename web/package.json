@@ -12,6 +12,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@better-auth/infra": "^0.3.7",
     "@ducanh2912/next-pwa": "^10.2.9",
     "@hexcast/shared": "*",
     "@netlify/plugin-nextjs": "^5.15.8",
