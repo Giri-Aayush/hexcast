@@ -30,6 +30,21 @@
   mask-image: linear-gradient(190deg, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.3) 46%, transparent 88%);
 }
 
+/* 01b · GENERATED IMAGE, SAME BAND AS THE DITHER
+   Drops into the dither's slot when the pipeline produced an image (#68). Same 128px
+   height and the same bottom-fade mask, so the badge overlaps a faded edge and the
+   layout is identical whether or not a card has one. cover crops the 16:9 image to
+   the band; the fade — not a hard edge — is what keeps the overlapping badge legible. */
+.hx-cardimg {
+  flex: none;
+  height: 128px;
+  width: 100%;
+  object-fit: cover;
+  display: block;
+  -webkit-mask-image: linear-gradient(190deg, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0.45) 46%, transparent 88%);
+  mask-image: linear-gradient(190deg, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0.45) 46%, transparent 88%);
+}
+
 /* 02 · BADGE PILL 26PX, OVERLAPS THE FIELD
    The negative margin is the overlap. It pulls the badge row up into the lower,
    faded part of the dither rather than sitting below it. */
@@ -61,6 +76,15 @@
   letter-spacing: 0.1em;
   color: var(--cat-meta);
   font-variant-numeric: tabular-nums;
+}
+
+/* The position number is plain text, not a pill, so over an image it can land on a
+   dark region and vanish — the badge beside it can't, being solid. A light paper halo
+   keeps it legible on any ground without adding chrome the card doesn't have elsewhere.
+   Scoped to the image case by the sibling selector: over the dither it already reads,
+   and a dither is a <div>, not .hx-cardimg, so those cards are untouched. */
+.hx-cardimg + .hx-badge-row .hx-position {
+  text-shadow: 0 0 3px rgba(244, 243, 239, 0.9), 0 1px 2px rgba(244, 243, 239, 0.75);
 }
 
 /* Must be able to SHRINK. With flex:none a long summary pushed the column taller
