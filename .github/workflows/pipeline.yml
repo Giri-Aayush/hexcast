@@ -19,7 +19,11 @@ concurrency:
 jobs:
   pipeline:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # A cold fetch of 88 sources (discourse pages ~90 topics each) exceeds 30 min and
+    # gets killed mid-fetch, before the process phase ever runs — which is why a fresh
+    # database banks raw_items but produces zero cards. Steady-state runs are minutes;
+    # this ceiling only matters on the first cold run.
+    timeout-minutes: 120
 
     steps:
       - uses: actions/checkout@v4
