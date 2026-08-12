@@ -4,6 +4,7 @@ import { createCard } from '../db/cards.js';
 import { normalize } from './normalizer.js';
 import { isDuplicate } from './deduplicator.js';
 import { classify } from './classifier.js';
+import { extractEntities } from './entity-checker.js';
 import { summarize } from './summarizer.js';
 import { scoreQualityBreakdown, shouldAutoSuppress } from './quality-scorer.js';
 import { hashUrl } from '../utils/hash.js';
@@ -175,14 +176,26 @@ export async function processRawItems(
         return;
       }
 
-      // 3. Skip sources too thin to summarize honestly. A 14-word source cannot yield
-      //    a 60-word factual card; the model fills the gap by inventing, and an
-      //    invented fact is worse than a missing card on a product that promises
-      //    accuracy. Measured on the real corpus: ~13% of items are under 200 chars.
-      //    These stay in raw_items and simply never become cards.
+      // 3. Skip sources too thin to summarize honestly. A source with no facts cannot
+      //    yield a factual card; the model fills the gap by inventing, and an invented
+      //    fact is worse than a missing card on a product that promises accuracy.
+      //
+      //    Length alone is the WRONG test, and using it cost us a whole category. A
+      //    DefiLlama metrics item averages 273 characters and 8.3 hard identifiers —
+      //    terse by nature, dense with facts, and every one of them was being thrown
+      //    away by a 600-character floor. Meanwhile the item this gate exists to catch
+      //    has 114 characters and ZERO identifiers. Identifier count separates those two;
+      //    character count cannot.
+      //
+      //    So: long enough OR factual enough. Items failing both stay in raw_items and
+      //    never become cards.
+      const sourceText = `${normalized.title} ${normalized.fullText}`;
       const sourceChars = normalized.title.length + normalized.fullText.length;
-      if (sourceChars < config.minSourceChars) {
-        logger.debug(`Skipping item ${item.id}: only ${sourceChars} chars of source`);
+      const identifiers = extractEntities(sourceText).length;
+      if (sourceChars < config.minSourceChars && identifiers < config.minSourceIdentifiers) {
+        logger.debug(
+          `Skipping item ${item.id}: only ${sourceChars} chars and ${identifiers} identifiers`,
+        );
         await markAsProcessed(item.id);
         skipReasons.tooThin++;
         skipped++;
