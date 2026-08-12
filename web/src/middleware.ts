@@ -6,7 +6,14 @@ async function rateLimit(request: NextRequest) {
     return null;
   }
 
-  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
+  // Netlify sets x-nf-client-connection-ip to the real TCP peer — not
+  // client-appendable, so it cannot be spoofed to dodge the per-IP cooldown. The
+  // leftmost x-forwarded-for token IS client-controllable, so it is only the local
+  // fallback, never trusted ahead of the header Netlify sets itself.
+  const ip =
+    request.headers.get('x-nf-client-connection-ip')?.trim() ||
+    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+    'unknown';
   const { allowed, remaining } = await checkRateLimit(ip);
 
   if (!allowed) {
