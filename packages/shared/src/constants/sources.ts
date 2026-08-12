@@ -843,3 +843,24 @@ for (const [grade, sources] of GRADE_MAP) {
 }
 
 export const GRADE_SORT_ORDER: Record<QualityGrade, number> = { S: 0, A: 1, B: 2, C: 3 };
+
+/**
+ * Sources that stay in the registry but must not be polled, with the reason.
+ *
+ * This lives here rather than only in migration 020 because migrations run BEFORE
+ * the seed on a fresh database. 020's UPDATEs hit an empty source_registry, do
+ * nothing, and then the seed inserts all 88 rows with is_active defaulting to
+ * true — so a freshly provisioned database silently comes up polling four dead
+ * endpoints. That cost a manual re-run of 020 during the 2026-08-12 provision.
+ *
+ * Declaring it in the seed data makes registry state reproducible regardless of
+ * provisioning order. The consequence, deliberately: the seed is now the authority
+ * on is_active, so deactivating a source by hand in the database will be reverted
+ * by the next seed. Deactivations belong here.
+ */
+export const DEACTIVATED_SOURCES: Record<string, string> = {
+  'ethereumweeklydigest.substack.com': 'Feed request times out after 60s (checked 2026-08-11)',
+  'blog.chain.link': 'RSS endpoint no longer resolves (checked 2026-08-11)',
+  'samczsun.com': 'RSS endpoint no longer resolves (checked 2026-08-11)',
+  'gov.curve.finance': 'Discourse /latest.json returns zero topics (checked 2026-08-11)',
+};
