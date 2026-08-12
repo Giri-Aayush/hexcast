@@ -153,3 +153,32 @@ describe('checkInvention', () => {
     expect(checkInvention(source, summary).clean).toBe(true);
   });
 });
+
+describe('dollar-amount extraction boundaries', () => {
+  it('does not swallow trailing punctuation', () => {
+    // The bug this guards: /\$[\d,.]+/ captured "$3,000," and "$0.9991." with the comma
+    // and full stop, so comparing against a source that writes "$3,000" reported the
+    // card's own figure as invented. 7 of 34 invention flags on a 60-card audit.
+    expect(extractEntities('raised $3,000, then paused')).toContain('$3,000');
+    expect(extractEntities('settled at $0.9991.')).toContain('$0.9991');
+    expect(extractEntities('raised $3,000, then paused')).not.toContain('$3,000,');
+  });
+
+  it('still reads the magnitude suffix and thousands separators', () => {
+    expect(extractEntities('a $8.7M round and a $1,250,000 grant and $2B TVL')).toEqual(
+      expect.arrayContaining(['$8.7M', '$1,250,000', '$2B']),
+    );
+  });
+
+  it('does not treat a bare dollar sign as an amount', () => {
+    expect(extractEntities('priced in $ terms')).toEqual([]);
+  });
+
+  it('stops an invented-figure false positive end to end', () => {
+    // Same figure, source writes it without the trailing comma the card happens to add.
+    const source = 'The treasury allocated $3,000 to the grant programme.';
+    const summary = 'Treasury allocated $3,000, funding the grant programme.';
+
+    expect(checkInvention(source, summary)).toEqual({ clean: true, inventedEntities: [] });
+  });
+});
