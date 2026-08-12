@@ -108,3 +108,67 @@ describe('loadConfig', () => {
     expect(config.env).toBe('staging');
   });
 });
+
+describe('LLM provider config', () => {
+  it('defaults dev to the local Ollama and the V1 prompt', async () => {
+    delete process.env.PIPELINE_ENV;
+    const config = await loadFreshConfig();
+
+    expect(config.llmBaseUrl).toBe('http://localhost:11434/v1');
+    expect(config.llmModel).toBe('llama3.1:8b');
+    expect(config.llmPrompt).toBe('v1');
+    // Nothing to pace against a local endpoint.
+    expect(config.llmMinIntervalMs).toBe(0);
+  });
+
+  it('defaults prod to OpenAI and the V1.3 prompt', async () => {
+    vi.stubEnv('PIPELINE_ENV', 'prod');
+    vi.stubEnv('OPENAI_API_KEY', 'sk-test');
+    const config = await loadFreshConfig();
+
+    expect(config.llmBaseUrl).toBe('https://api.openai.com/v1');
+    expect(config.llmModel).toBe('gpt-4.1-mini');
+    expect(config.llmPrompt).toBe('v1.3');
+    expect(config.llmMinIntervalMs).toBe(150);
+  });
+
+  it('points at any OpenAI-compatible endpoint without a code change', async () => {
+    vi.stubEnv('PIPELINE_ENV', 'prod');
+    vi.stubEnv('LLM_BASE_URL', 'https://api.groq.com/openai/v1');
+    vi.stubEnv('LLM_API_KEY', 'gsk-test');
+    vi.stubEnv('LLM_MODEL', 'llama-3.3-70b-versatile');
+    const config = await loadFreshConfig();
+
+    expect(config.llmBaseUrl).toBe('https://api.groq.com/openai/v1');
+    expect(config.llmModel).toBe('llama-3.3-70b-versatile');
+  });
+
+  it('does not demand an OpenAI key when prod points elsewhere', async () => {
+    // This is the guard that would otherwise block the whole migration: the old
+    // check refused to start prod without OPENAI_API_KEY even when OpenAI is not
+    // the provider being used.
+    vi.stubEnv('PIPELINE_ENV', 'prod');
+    vi.stubEnv('LLM_BASE_URL', 'https://api.groq.com/openai/v1');
+    vi.stubEnv('LLM_API_KEY', 'gsk-test');
+    delete process.env.OPENAI_API_KEY;
+
+    await expect(loadFreshConfig()).resolves.toBeDefined();
+  });
+
+  it('still demands a key when prod points at OpenAI', async () => {
+    vi.stubEnv('PIPELINE_ENV', 'prod');
+    delete process.env.OPENAI_API_KEY;
+    delete process.env.LLM_BASE_URL;
+
+    await expect(loadFreshConfig()).rejects.toThrow('OPENAI_API_KEY is required');
+  });
+
+  it('refuses a custom prod provider with no key at all', async () => {
+    vi.stubEnv('PIPELINE_ENV', 'prod');
+    vi.stubEnv('LLM_BASE_URL', 'https://api.groq.com/openai/v1');
+    delete process.env.LLM_API_KEY;
+    delete process.env.OPENAI_API_KEY;
+
+    await expect(loadFreshConfig()).rejects.toThrow('LLM_API_KEY is required');
+  });
+});

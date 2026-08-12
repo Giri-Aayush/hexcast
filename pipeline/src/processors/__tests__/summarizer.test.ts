@@ -49,6 +49,26 @@ function wordsOf(n: number): string {
   return Array.from({ length: n }, (_, i) => `word${i}`).join(' ');
 }
 
+const localLlmConfig = {
+  env: 'dev' as const,
+  llmBaseUrl: 'http://localhost:11434/v1',
+  llmApiKey: 'ollama',
+  llmModel: 'llama3.1:8b',
+  llmPrompt: 'v1' as const,
+  llmMinIntervalMs: 0,
+  llmMaxInputChars: 6000,
+};
+
+const remoteLlmConfig = {
+  env: 'prod' as const,
+  llmBaseUrl: 'https://api.openai.com/v1',
+  llmApiKey: 'sk-test-key',
+  llmModel: 'gpt-4.1-mini',
+  llmPrompt: 'v1.3' as const,
+  llmMinIntervalMs: 150,
+  llmMaxInputChars: 8000,
+};
+
 const defaultTitle = 'Ethereum EIP-7702 Proposal Advances';
 const defaultText = 'Some article content about Ethereum EIP-7702 proposal and its implications for account abstraction.';
 
@@ -57,13 +77,9 @@ const defaultText = 'Some article content about Ethereum EIP-7702 proposal and i
 beforeEach(() => {
   vi.clearAllMocks();
 
-  // Default: dev mode (Ollama), matching loadConfig()'s defaults
-  mocks.mockLoadConfig.mockReturnValue({
-    env: 'dev',
-    openaiApiKey: undefined,
-    ollamaBaseUrl: 'http://localhost:11434/v1',
-    ollamaModel: 'llama3.1:8b',
-  });
+  // Default: what loadConfig() produces for local dev — a local Ollama, V1 prompt,
+  // no pacing. The provider is config now, not a fork on PIPELINE_ENV.
+  mocks.mockLoadConfig.mockReturnValue({ ...localLlmConfig });
 
   // Default: entity preservation passes
   mocks.mockCheckEntityPreservation.mockReturnValue({
@@ -257,13 +273,8 @@ describe('summarize', () => {
     expect(result.headline).toBe(expectedFallback);
   });
 
-  it('uses V1 prompt and Ollama config in dev mode', async () => {
-    mocks.mockLoadConfig.mockReturnValue({
-      env: 'dev',
-      openaiApiKey: undefined,
-      ollamaBaseUrl: 'http://localhost:11434/v1',
-      ollamaModel: 'llama3.1:8b',
-    });
+  it('uses the V1 prompt and the configured local model', async () => {
+    mocks.mockLoadConfig.mockReturnValue({ ...localLlmConfig });
 
     const summaryText = wordsOf(58);
     mocks.mockCreate.mockResolvedValueOnce(makeResponse(summaryText));
@@ -286,12 +297,12 @@ describe('summarize', () => {
     expect(summaryCall.model).toBe('llama3.1:8b');
 
     expect(mocks.mockLogger.debug).toHaveBeenCalledWith(
-      expect.stringContaining('Ollama 8B (V1)'),
+      expect.stringContaining('llama3.1:8b (v1)'),
     );
   });
 
-  it('uses V1.3 prompt and GPT-4.1 Mini in prod mode', async () => {
-    mocks.mockLoadConfig.mockReturnValue({ env: 'prod', openaiApiKey: 'sk-test-key' });
+  it('uses the V1.3 prompt and the configured remote model', async () => {
+    mocks.mockLoadConfig.mockReturnValue({ ...remoteLlmConfig });
 
     const summaryText = wordsOf(58);
     // Prod output may have <think> block
@@ -314,12 +325,12 @@ describe('summarize', () => {
     expect(summaryCall.model).toBe('gpt-4.1-mini');
 
     expect(mocks.mockLogger.debug).toHaveBeenCalledWith(
-      expect.stringContaining('GPT-4.1 Mini (V1.3)'),
+      expect.stringContaining('gpt-4.1-mini (v1.3)'),
     );
   });
 
-  it('strips <think> block from prod output and extracts summary properly', async () => {
-    mocks.mockLoadConfig.mockReturnValue({ env: 'prod', openaiApiKey: 'sk-test-key' });
+  it('strips <think> block from V1.3 output and extracts summary properly', async () => {
+    mocks.mockLoadConfig.mockReturnValue({ ...remoteLlmConfig });
 
     const actualSummary = wordsOf(58);
     const prodOutput = `<think>
@@ -413,8 +424,8 @@ ${actualSummary}`;
     );
   });
 
-  it('truncates long fullText for prod mode at 8000 chars with truncation marker', async () => {
-    mocks.mockLoadConfig.mockReturnValue({ env: 'prod', openaiApiKey: 'sk-test-key' });
+  it('truncates long fullText at the configured max input chars', async () => {
+    mocks.mockLoadConfig.mockReturnValue({ ...remoteLlmConfig });
 
     // Create text > 8000 chars
     const longText = 'A'.repeat(10000);
