@@ -50,6 +50,19 @@ export const auth = betterAuth({
     enabled: true,
   },
 
+  advanced: {
+    ipAddress: {
+      // We deploy behind Netlify's CDN, so every request's TCP peer is Netlify —
+      // Better Auth's rate limiter would otherwise throttle the whole site as one
+      // client. `x-nf-client-connection-ip` is the real client IP Netlify sets
+      // itself; unlike the leftmost `x-forwarded-for` token it is not
+      // client-appendable, so it is safe to trust. XFF is the fallback for any
+      // context Netlify does not set the first (e.g. local dev). Their docs steer
+      // to a single proxy-set header over the XFF chain for exactly this reason.
+      ipAddressHeaders: ['x-nf-client-connection-ip', 'x-forwarded-for'],
+    },
+  },
+
   // nextCookies must be last: it is what lets server actions set the session
   // cookie through Next's cookie store instead of raw headers.
   plugins: [...infraPlugins, nextCookies()],
