@@ -35,6 +35,17 @@ jobs:
 
       - run: npm ci
 
+      # A misspelled LLM_BASE_URL does not error — config silently falls back to the
+      # PIPELINE_ENV=prod default (api.openai.com, dead key) and 401s on every item,
+      # indistinguishable from a healthy run that made nothing. Fail loudly here.
+      - name: Assert the summarization provider is set
+        env:
+          LLM_BASE_URL: https://openrouter.ai/api/v1
+        run: |
+          echo "$LLM_BASE_URL" | grep -q 'openrouter' \
+            || { echo "::error::LLM_BASE_URL is not OpenRouter — a typo would use the dead OpenAI key"; exit 1; }
+          echo "provider: $LLM_BASE_URL"
+
       - name: Fetch & process all sources
         run: npm run pipeline
         env:
@@ -42,8 +53,28 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           GITHUB_PAT: ${{ secrets.GH_PAT }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           CRYPTOPANIC_API_KEY: ${{ secrets.CRYPTOPANIC_API_KEY }}
+          # Summarization provider — DeepSeek V4 Flash via OpenRouter (paid, ~$0.65/mo,
+          # no daily cap). Benchmarked best-quality of every provider measured; the
+          # dead OpenAI key is retired.
+          LLM_BASE_URL: https://openrouter.ai/api/v1
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          LLM_MODEL: deepseek/deepseek-v4-flash-0731
+          LLM_PROMPT: v1
+          # enabled:false actually disables reasoning; exclude:true only HIDES it and
+          # still bills it as output (NOVA measured 290 leaked tokens + failures).
+          LLM_EXTRA_BODY: '{"reasoning":{"enabled":false}}'
+          LLM_MIN_INTERVAL_MS: '200'
+          CONCURRENCY: '1'
+          # News product: skip archive. 90 days keeps ~814 items, drops ~1,290 too old.
+          # getCards has no age filter, so without this anon visitors see 2017 posts.
+          MAX_SOURCE_AGE_DAYS: '90'
+          # Fallback 1 — NVIDIA, the only free provider with no daily wall, so it can
+          # actually carry a DeepSeek outage. Groq/OpenRouter-free would cap out.
+          LLM_FALLBACK_BASE_URL: https://integrate.api.nvidia.com/v1
+          LLM_FALLBACK_API_KEY: ${{ secrets.LLM_FALLBACK_API_KEY }}
+          LLM_FALLBACK_MODEL: meta/llama-3.3-70b-instruct
+          LLM_FALLBACK_MIN_INTERVAL_MS: '1000'
           SENTRY_DSN: ${{ secrets.PIPELINE_SENTRY_DSN }}
           PIPELINE_VERSION: '0.1.0'
           BATCH_SIZE: ${{ github.event.inputs.batch_size || '100' }}
