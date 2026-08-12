@@ -149,7 +149,20 @@ export async function processRawItems(
         return;
       }
 
-      // 2. Deduplicate
+      // 2. Skip sources too thin to summarize honestly. A 14-word source cannot yield
+      //    a 60-word factual card; the model fills the gap by inventing, and an
+      //    invented fact is worse than a missing card on a product that promises
+      //    accuracy. Measured on the real corpus: ~13% of items are under 200 chars.
+      //    These stay in raw_items and simply never become cards.
+      const sourceChars = normalized.title.length + normalized.fullText.length;
+      if (sourceChars < config.minSourceChars) {
+        logger.debug(`Skipping item ${item.id}: only ${sourceChars} chars of source`);
+        await markAsProcessed(item.id);
+        skipped++;
+        return;
+      }
+
+      // 3. Deduplicate
       const duplicate = await isDuplicate(
         normalized.canonicalUrl,
         normalized.title,
@@ -162,10 +175,10 @@ export async function processRawItems(
         return;
       }
 
-      // 3. Classify
+      // 4. Classify
       const category = classify(normalized.sourceId);
 
-      // 4. Summarize
+      // 5. Summarize
       if (config.dryRun) {
         logger.info(`[DRY RUN] Would summarize: ${normalized.title}`);
         skipped++;
@@ -174,7 +187,7 @@ export async function processRawItems(
 
       const { headline, summary, signals } = await summarize(normalized.fullText, normalized.title);
 
-      // 5. Quality score
+      // 6. Quality score
       const quality = scoreQualityBreakdown({
         sourceId: normalized.sourceId,
         headline,
@@ -192,7 +205,7 @@ export async function processRawItems(
         return;
       }
 
-      // 6. Create card
+      // 7. Create card
       const cardId = await createCard({
         sourceId: normalized.sourceId,
         canonicalUrl: normalized.canonicalUrl,
@@ -209,7 +222,7 @@ export async function processRawItems(
         signals,
       });
 
-      // 7. Queue high-priority items (SECURITY / UPGRADE)
+      // 8. Queue high-priority items (SECURITY / UPGRADE)
       if (category === 'SECURITY' || category === 'UPGRADE') {
         const { error: hpqError } = await supabase
           .from('high_priority_queue')

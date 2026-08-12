@@ -112,6 +112,7 @@ const defaultSignals = {
 };
 
 const defaultConfig = {
+  minSourceChars: 0, // most tests are not about the gate
   batchSize: 100,
   concurrency: 1,
   dryRun: false,
@@ -196,6 +197,42 @@ describe('roundRobinBySource', () => {
     expect(roundRobinBySource([])).toEqual([]);
     const single = [makeItemFrom('a', 'a1')];
     expect(roundRobinBySource(single)).toBe(single);
+  });
+});
+
+describe('thin-source gate', () => {
+  it('skips an item whose source is too thin to summarize honestly', async () => {
+    // 14 words of source cannot become a 60-word factual card. Summarizing it means
+    // the model invents the difference, which is worse than having no card at all.
+    mocks.mockLoadConfig.mockReturnValue({ ...defaultConfig, minSourceChars: 600 });
+    mocks.mockGetUnprocessedItems.mockResolvedValue([makeItem('thin-1')]);
+    mocks.mockNormalize.mockReturnValue({
+      ...makeNormalized('thin-1'),
+      title: 'Preparing for the Dencun Hard Fork',
+      fullText: 'Developers are preparing.',
+    });
+
+    const result = await processRawItems();
+
+    expect(result).toEqual({ processed: 0, skipped: 1, failed: 0 });
+    expect(mocks.mockSummarize).not.toHaveBeenCalled();
+    // Marked processed so it does not clog the queue forever — the source text will
+    // not grow later.
+    expect(mocks.mockMarkAsProcessed).toHaveBeenCalledWith('thin-1');
+  });
+
+  it('summarizes an item with enough source behind it', async () => {
+    mocks.mockLoadConfig.mockReturnValue({ ...defaultConfig, minSourceChars: 600 });
+    mocks.mockGetUnprocessedItems.mockResolvedValue([makeItem('rich-1')]);
+    mocks.mockNormalize.mockReturnValue({
+      ...makeNormalized('rich-1'),
+      fullText: 'x'.repeat(900),
+    });
+
+    const result = await processRawItems();
+
+    expect(result).toEqual({ processed: 1, skipped: 0, failed: 0 });
+    expect(mocks.mockSummarize).toHaveBeenCalled();
   });
 });
 
