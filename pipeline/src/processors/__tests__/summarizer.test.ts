@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => {
     mockLoadConfig: vi.fn(),
     mockLogger: { info: vi.fn(), debug: vi.fn(), warn: vi.fn(), error: vi.fn() },
     mockCheckEntityPreservation: vi.fn(),
+    mockCheckInvention: vi.fn(),
   };
 });
 
@@ -30,6 +31,7 @@ vi.mock('../../utils/logger.js', () => ({
 
 vi.mock('../entity-checker.js', () => ({
   checkEntityPreservation: mocks.mockCheckEntityPreservation,
+  checkInvention: mocks.mockCheckInvention,
 }));
 
 // ── Import under test (after mocks) ─────────────────────────────────────
@@ -103,11 +105,14 @@ beforeEach(() => {
   // no pacing. The provider is config now, not a fork on PIPELINE_ENV.
   mocks.mockLoadConfig.mockReturnValue({ ...localLlmConfig });
 
-  // Default: entity preservation passes
+  // Default: entity preservation passes and nothing is invented
   mocks.mockCheckEntityPreservation.mockReturnValue({
     passed: true,
     missingEntities: [],
+    totalEntities: 4,
+    preservationRate: 1,
   });
+  mocks.mockCheckInvention.mockReturnValue({ clean: true, inventedEntities: [] });
 });
 
 // ── Tests ────────────────────────────────────────────────────────────────

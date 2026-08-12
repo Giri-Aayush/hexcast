@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extractEntities, checkEntityPreservation } from '../entity-checker.js';
+import { extractEntities, checkEntityPreservation, checkInvention } from '../entity-checker.js';
 
 describe('extractEntities', () => {
   it('extracts EIP references', () => {
@@ -112,5 +112,44 @@ describe('checkEntityPreservation', () => {
   it('returns passed: true with empty missing list when both source and summary are empty', () => {
     const result = checkEntityPreservation('', '');
     expect(result).toEqual({ passed: true, missingEntities: [], totalEntities: 0, preservationRate: 1 });
+  });
+});
+
+describe('checkInvention', () => {
+  it('flags an identifier the summary asserts and the source never states', () => {
+    // The real case: a 113-char source about "the engineering effort preparing for the
+    // Dencun hard fork" produced a card claiming EIP-4844 and a March activation.
+    const source = 'In this post we detail the engineering effort preparing for the Dencun hard fork';
+    const summary = 'Ethereum devs finalized mainnet plans for EIP-4844 proto-danksharding, lowering blob fees.';
+
+    const result = checkInvention(source, summary);
+
+    expect(result.clean).toBe(false);
+    expect(result.inventedEntities).toContain('EIP-4844');
+  });
+
+  it('passes a summary that only restates identifiers from the source', () => {
+    const source = 'Geth v1.14.0 ships EIP-4844 support, cutting fees 90% and saving $2.5M in gas.';
+    const summary = 'Geth v1.14.0 ships EIP-4844, cutting fees 90% and saving $2.5M.';
+
+    expect(checkInvention(source, summary)).toEqual({ clean: true, inventedEntities: [] });
+  });
+
+  it('flags several inventions at once', () => {
+    const source = 'The client release fixes a memory leak.';
+    const summary = 'Release v2.4.1 fixes a leak affecting 45% of nodes and $1.2M in stake.';
+
+    const result = checkInvention(source, summary);
+
+    expect(result.inventedEntities).toHaveLength(3);
+  });
+
+  it('says nothing about invented prose, only identifiers', () => {
+    // Documenting the limit rather than implying broader coverage: this cannot detect a
+    // fabricated claim that contains no identifier.
+    const source = 'The team published a status update.';
+    const summary = 'The team confirmed the upgrade is on schedule and testing is complete.';
+
+    expect(checkInvention(source, summary).clean).toBe(true);
   });
 });
