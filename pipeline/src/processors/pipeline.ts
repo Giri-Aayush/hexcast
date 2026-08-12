@@ -159,7 +159,7 @@ export async function processRawItems(
       const normalized = normalize(item);
       if (!normalized) {
         logger.debug(`Skipping item ${item.id}: no meaningful content`);
-        await markAsProcessed(item.id);
+        await markAsProcessed(item.id, 'empty');
         skipReasons.empty++;
         skipped++;
         return;
@@ -170,7 +170,7 @@ export async function processRawItems(
         (Date.now() - new Date(normalized.publishedAt).getTime()) / 86_400_000;
       if (Number.isFinite(ageDays) && ageDays > config.maxSourceAgeDays) {
         logger.debug(`Skipping item ${item.id}: published ${Math.round(ageDays)} days ago`);
-        await markAsProcessed(item.id);
+        await markAsProcessed(item.id, 'tooOld');
         skipReasons.tooOld++;
         skipped++;
         return;
@@ -196,7 +196,7 @@ export async function processRawItems(
         logger.debug(
           `Skipping item ${item.id}: only ${sourceChars} chars and ${identifiers} identifiers`,
         );
-        await markAsProcessed(item.id);
+        await markAsProcessed(item.id, 'tooThin');
         skipReasons.tooThin++;
         skipped++;
         return;
@@ -210,7 +210,7 @@ export async function processRawItems(
       );
       if (duplicate) {
         logger.debug(`Skipping duplicate: ${normalized.canonicalUrl}`);
-        await markAsProcessed(item.id);
+        await markAsProcessed(item.id, 'duplicate');
         skipReasons.duplicate++;
         skipped++;
         return;
@@ -243,7 +243,7 @@ export async function processRawItems(
       if (shouldAutoSuppress(qualityScore)) {
         logger.info(`Auto-suppressed low-quality card (${qualityScore.toFixed(2)}): "${headline}"`);
         skipReasons.lowQuality++;
-        await markAsProcessed(item.id);
+        await markAsProcessed(item.id, 'lowQuality');
         skipped++;
         return;
       }
