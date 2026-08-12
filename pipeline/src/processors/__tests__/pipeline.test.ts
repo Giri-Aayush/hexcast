@@ -140,6 +140,7 @@ beforeEach(() => {
   mocks.mockSummarize.mockResolvedValue({
     headline: 'Test Headline',
     summary: 'Test summary text.',
+    stats: null,
     signals: defaultSignals,
   });
   mocks.mockScoreQualityBreakdown.mockReturnValue({
@@ -521,8 +522,45 @@ describe('processRawItems', () => {
       // later — picking a threshold blind is how the old one became unreachable.
       quality: { score: 0.8, sourceWeight: 1, contentSignals: 0.9, generation: 0.7 },
       signals: defaultSignals,
+      stats: null,
     });
     expect(mocks.mockMarkAsProcessed).toHaveBeenCalledWith('item-1');
+  });
+
+  it('stores the stat row the summarizer produced', async () => {
+    // Without this the stat row can be silently dropped between summarize and createCard
+    // and every other test still passes, because they assert createCard params with an
+    // object that omits `stats` — and an undefined property compares equal to an absent
+    // one. That is precisely how skip_reason could have shipped computing a value it
+    // never wrote down.
+    const stats = [
+      { value: '$1.51B', label: 'SUPPLY' },
+      { value: '6.50%', label: '24H CHANGE' },
+    ];
+    mocks.mockGetUnprocessedItems.mockResolvedValue([makeItem('item-1')]);
+    mocks.mockNormalize.mockReturnValue(makeNormalized('item-1'));
+    mocks.mockSummarize.mockResolvedValue({
+      headline: 'Test Headline',
+      summary: 'Test summary text.',
+      stats,
+      signals: defaultSignals,
+    });
+
+    await processRawItems();
+
+    expect(mocks.mockCreateCard).toHaveBeenCalledWith(expect.objectContaining({ stats }));
+  });
+
+  it('stores a null stat row without failing the card', async () => {
+    // Null is the ordinary case, not an error: ~40% of real summaries carry fewer than two
+    // figures and legitimately have no row.
+    mocks.mockGetUnprocessedItems.mockResolvedValue([makeItem('item-1')]);
+    mocks.mockNormalize.mockReturnValue(makeNormalized('item-1'));
+
+    const result = await processRawItems();
+
+    expect(result).toEqual({ processed: 1, skipped: 0, failed: 0 });
+    expect(mocks.mockCreateCard).toHaveBeenCalledWith(expect.objectContaining({ stats: null }));
   });
 
   it('queues SECURITY category cards to high_priority_queue', async () => {

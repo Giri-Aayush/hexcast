@@ -18,58 +18,10 @@
  */
 import { createClient } from '@supabase/supabase-js';
 import { loadConfig } from '../src/config.js';
+import { extractFigures, type Figure } from '../src/processors/figures.js';
 
 const config = loadConfig();
 const db = createClient(config.supabaseUrl, config.supabaseServiceKey);
-
-// Dates are numbers a reader would never want in a stat row. "Pectra goes live on
-// May 07, 2025 at 10:05 UTC" yields 07, 2025, 10 and 05 — four figures, zero stats, and
-// on the first pass they were enough to push a card over the two-figure bar on their own.
-// Blanked out before anything else runs. Same lesson as the dollar regex that captured
-// trailing commas: an over-eager pattern does not just add noise, it changes the answer.
-const DATE_PATTERNS: RegExp[] = [
-  /\b\d{4}-\d{2}-\d{2}\b/g,
-  /\b\d{1,2}:\d{2}(?::\d{2})?\s?(?:UTC|GMT|am|pm)?\b/gi,
-  /\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+\d{1,2}(?:st|nd|rd|th)?(?:,?\s+\d{4})?\b/gi,
-  /\b\d{1,2}(?:st|nd|rd|th)?\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?(?:,?\s+\d{4})?\b/gi,
-  /\b(?:19|20)\d{2}\b/g,
-  /\bQ[1-4]\s+(?:19|20)\d{2}\b/gi,
-];
-
-function stripDates(text: string): string {
-  let out = text;
-  for (const pattern of DATE_PATTERNS) out = out.replace(pattern, (m) => ' '.repeat(m.length));
-  return out;
-}
-
-// Most-specific first. Each match is blanked out of the working copy before the next
-// pattern runs, so "$1.2M" counts once as money rather than three times as money, scaled
-// and bare. Order is the whole correctness argument here.
-const FIGURE_PATTERNS: Array<[string, RegExp]> = [
-  ['eip/erc', /\b(?:EIP|ERC)-\d+\b/gi],
-  ['percent', /\d+(?:\.\d+)?%/g],
-  ['money', /\$\d(?:[\d,]*\d)?(?:\.\d+)?\s?(?:[TBMK]\b|trillion|billion|million|thousand)?/gi],
-  ['version', /\bv\d+\.\d+(?:\.\d+)?\b/gi],
-  ['scaled', /\b\d+(?:\.\d+)?\s?(?:[TBMK]\b|trillion|billion|million|thousand)\b/g],
-  ['bare', /\b\d+(?:[.,]\d+)*\b/g],
-];
-
-interface Figure {
-  value: string;
-  kind: string;
-}
-
-export function extractFigures(text: string): Figure[] {
-  let rest = stripDates(text);
-  const found: Figure[] = [];
-  for (const [kind, pattern] of FIGURE_PATTERNS) {
-    for (const match of rest.match(pattern) ?? []) {
-      found.push({ value: match.trim(), kind });
-      rest = rest.replace(match, ' '.repeat(match.length));
-    }
-  }
-  return found;
-}
 
 const limit = parseInt(process.argv[2] ?? '200', 10);
 
