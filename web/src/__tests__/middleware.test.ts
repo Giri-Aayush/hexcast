@@ -10,12 +10,6 @@ vi.mock('@/lib/rate-limit', () => ({
   checkRateLimit: mockCheckRateLimit,
 }));
 
-vi.mock('@clerk/nextjs/server', () => ({
-  clerkMiddleware: (callback: any) => {
-    return (request: any, _event: any) => callback({}, request);
-  },
-}));
-
 import middleware, { config } from '../middleware';
 
 beforeEach(() => {
@@ -24,24 +18,25 @@ beforeEach(() => {
 
 describe('middleware', () => {
   describe('non-API routes', () => {
-    it('returns undefined for non-API routes (no rate limiting applied)', async () => {
+    it('passes non-API routes through without rate limiting', async () => {
       const request = new NextRequest('http://localhost/about');
-      const result = await middleware(request as any, {} as any);
-      expect(result).toBeUndefined();
+      const result = await middleware(request as any);
+      // Plain pass-through — the invariant is that the limiter never ran.
+      expect(result!.status).toBe(200);
       expect(mockCheckRateLimit).not.toHaveBeenCalled();
     });
 
-    it('returns undefined for the root path', async () => {
+    it('passes the root path through without rate limiting', async () => {
       const request = new NextRequest('http://localhost/');
-      const result = await middleware(request as any, {} as any);
-      expect(result).toBeUndefined();
+      const result = await middleware(request as any);
+      expect(result!.status).toBe(200);
       expect(mockCheckRateLimit).not.toHaveBeenCalled();
     });
 
-    it('returns undefined for nested non-API paths', async () => {
+    it('passes nested non-API paths through without rate limiting', async () => {
       const request = new NextRequest('http://localhost/dashboard/settings');
-      const result = await middleware(request as any, {} as any);
-      expect(result).toBeUndefined();
+      const result = await middleware(request as any);
+      expect(result!.status).toBe(200);
       expect(mockCheckRateLimit).not.toHaveBeenCalled();
     });
   });
@@ -53,7 +48,7 @@ describe('middleware', () => {
         headers: { 'x-forwarded-for': '1.2.3.4' },
       });
 
-      const result = (await middleware(request as any, {} as any)) as Response;
+      const result = (await middleware(request as any)) as Response;
 
       expect(result).toBeDefined();
       expect(result.status).toBe(200);
@@ -67,7 +62,7 @@ describe('middleware', () => {
         headers: { 'x-forwarded-for': '10.0.0.1' },
       });
 
-      const result = (await middleware(request as any, {} as any)) as Response;
+      const result = (await middleware(request as any)) as Response;
 
       expect(result.headers.get('X-RateLimit-Remaining')).toBe('42');
     });
@@ -78,7 +73,7 @@ describe('middleware', () => {
         headers: { 'x-forwarded-for': '10.0.0.2' },
       });
 
-      const result = (await middleware(request as any, {} as any)) as Response;
+      const result = (await middleware(request as any)) as Response;
 
       expect(result.status).toBe(200);
       expect(result.headers.get('X-RateLimit-Remaining')).toBe('0');
@@ -92,7 +87,7 @@ describe('middleware', () => {
         headers: { 'x-forwarded-for': '1.2.3.4' },
       });
 
-      const result = (await middleware(request as any, {} as any)) as Response;
+      const result = (await middleware(request as any)) as Response;
 
       expect(result).toBeDefined();
       expect(result.status).toBe(429);
@@ -108,7 +103,7 @@ describe('middleware', () => {
         headers: { 'x-forwarded-for': '5.6.7.8' },
       });
 
-      const result = (await middleware(request as any, {} as any)) as Response;
+      const result = (await middleware(request as any)) as Response;
 
       expect(result.status).toBe(429);
       const body = await result.json();
@@ -123,7 +118,7 @@ describe('middleware', () => {
         headers: { 'x-forwarded-for': '1.2.3.4, 5.6.7.8, 9.10.11.12' },
       });
 
-      await middleware(request as any, {} as any);
+      await middleware(request as any);
 
       expect(mockCheckRateLimit).toHaveBeenCalledWith('1.2.3.4');
     });
@@ -134,7 +129,7 @@ describe('middleware', () => {
         headers: { 'x-forwarded-for': '  1.2.3.4  , 5.6.7.8' },
       });
 
-      await middleware(request as any, {} as any);
+      await middleware(request as any);
 
       expect(mockCheckRateLimit).toHaveBeenCalledWith('1.2.3.4');
     });
@@ -143,7 +138,7 @@ describe('middleware', () => {
       mockCheckRateLimit.mockResolvedValue({ allowed: true, remaining: 299 });
       const request = new NextRequest('http://localhost/api/cards');
 
-      await middleware(request as any, {} as any);
+      await middleware(request as any);
 
       expect(mockCheckRateLimit).toHaveBeenCalledWith('unknown');
     });
@@ -154,7 +149,7 @@ describe('middleware', () => {
         headers: { 'x-forwarded-for': '192.168.1.100' },
       });
 
-      await middleware(request as any, {} as any);
+      await middleware(request as any);
 
       expect(mockCheckRateLimit).toHaveBeenCalledWith('192.168.1.100');
     });

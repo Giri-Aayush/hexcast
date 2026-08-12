@@ -1,7 +1,7 @@
 'use client';
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from '@clerk/nextjs';
+import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from '@/lib/auth-ui';
 import type { Card as CardType } from '@hexcast/shared';
 import { CATEGORY_LABELS } from '@/lib/utils';
 import { Card } from './card';

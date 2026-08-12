@@ -1,4 +1,3 @@
-import { clerkMiddleware } from '@clerk/nextjs/server';
 import { NextResponse, type NextRequest } from 'next/server';
 import { checkRateLimit } from '@/lib/rate-limit';
 
@@ -22,10 +21,13 @@ async function rateLimit(request: NextRequest) {
   return response;
 }
 
-export default clerkMiddleware(async (_auth, request) => {
+// Better Auth needs no middleware wrapper — sessions are cookie + database, read
+// where they are used. Middleware is rate limiting alone now.
+export default async function middleware(request: NextRequest) {
   const rateLimitResponse = await rateLimit(request);
   if (rateLimitResponse) return rateLimitResponse;
-});
+  return NextResponse.next();
+}
 
 export const config = {
   matcher: ['/((?!.*\\..*|_next).*)', '/', '/(api|trpc)(.*)'],

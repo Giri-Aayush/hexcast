@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from 'next';
-import { ClerkProvider } from '@clerk/nextjs';
 import './globals.css';
 import { BottomNav } from '@/components/bottom-nav';
 import { FeedbackWidget } from '@/components/feedback-widget';
@@ -50,14 +49,13 @@ export const viewport: Viewport = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  // suppressHydrationWarning on html and body: browser extensions inject into head
+  // and body before React hydrates — an Aztec wallet extension adds an inpage
+  // script, ColorZilla adds cz-shortcut-listen — and React reports the first
+  // divergent node rather than the cause. Verified in a clean headless browser:
+  // zero hydration warnings. This only silences attribute mismatches on these two
+  // elements, not anything inside the app.
   return (
-    <ClerkProvider>
-      {/* suppressHydrationWarning on both: browser extensions inject into head and
-          body before React hydrates — an Aztec wallet extension adds an inpage
-          script, ColorZilla adds cz-shortcut-listen — and React reports the first
-          divergent node rather than the cause. Verified in a clean headless browser:
-          zero hydration warnings. This only silences attribute mismatches on these
-          two elements, not anything inside the app. */}
       <html lang="en" suppressHydrationWarning>
         <head>
           <script
@@ -116,6 +114,5 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </PostHogProvider>
         </body>
       </html>
-    </ClerkProvider>
   );
 }

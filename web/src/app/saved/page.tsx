@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { useEffect } from 'react';
 import Link from 'next/link';
-import { SignedIn, SignedOut, SignInButton, useUser } from '@clerk/nextjs';
+import { SignedIn, SignedOut, SignInButton, useUser } from '@/lib/auth-ui';
 import { useSaved } from '@/stores/saved';
 import { CATEGORY_LABELS, extractDomain, relativeTime } from '@/lib/utils';
 

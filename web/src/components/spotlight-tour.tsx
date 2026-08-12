@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { useUser } from '@clerk/nextjs';
+import { useUser } from '@/lib/auth-ui';
 import { capture } from '@/lib/posthog';
 
 const STORAGE_KEY = 'hexcast_tour_completed';

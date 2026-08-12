@@ -3,7 +3,7 @@ import { NextRequest } from 'next/server';
 
 // --- Mocks (before route import) ---
 
-vi.mock('@clerk/nextjs/server', () => ({
+vi.mock('@/lib/server-auth', () => ({
   auth: vi.fn(),
 }));
 

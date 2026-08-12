@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useUser } from '@clerk/nextjs';
+import { useUser } from '@/lib/auth-ui';
 import posthog from 'posthog-js';
 
 export function PostHogProvider({ children }: { children: React.ReactNode }) {
@@ -13,9 +13,9 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
 
     if (isSignedIn && user) {
       posthog.identify(user.id, {
-        email: user.primaryEmailAddress?.emailAddress,
-        name: user.fullName,
-        avatar: user.imageUrl,
+        email: user.email,
+        name: user.name,
+        avatar: user.image,
       });
     } else if (isSignedIn === false) {
       posthog.reset();
