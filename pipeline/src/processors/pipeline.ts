@@ -144,6 +144,10 @@ export async function processRawItems(
   let processed = 0;
   let skipped = 0;
   let failed = 0;
+  // Why things were skipped, not just how many. A run that reports "107 skipped" looks
+  // identical whether the gates are working or a misconfigured window is rejecting
+  // everything — and the individual reasons are debug-level, which production does not log.
+  const skipReasons = { empty: 0, tooOld: 0, tooThin: 0, duplicate: 0, lowQuality: 0, dryRun: 0 };
   const startTime = Date.now();
   const sem = new Semaphore(config.concurrency);
 
@@ -155,6 +159,7 @@ export async function processRawItems(
       if (!normalized) {
         logger.debug(`Skipping item ${item.id}: no meaningful content`);
         await markAsProcessed(item.id);
+        skipReasons.empty++;
         skipped++;
         return;
       }
@@ -165,6 +170,7 @@ export async function processRawItems(
       if (Number.isFinite(ageDays) && ageDays > config.maxSourceAgeDays) {
         logger.debug(`Skipping item ${item.id}: published ${Math.round(ageDays)} days ago`);
         await markAsProcessed(item.id);
+        skipReasons.tooOld++;
         skipped++;
         return;
       }
@@ -178,6 +184,7 @@ export async function processRawItems(
       if (sourceChars < config.minSourceChars) {
         logger.debug(`Skipping item ${item.id}: only ${sourceChars} chars of source`);
         await markAsProcessed(item.id);
+        skipReasons.tooThin++;
         skipped++;
         return;
       }
@@ -191,6 +198,7 @@ export async function processRawItems(
       if (duplicate) {
         logger.debug(`Skipping duplicate: ${normalized.canonicalUrl}`);
         await markAsProcessed(item.id);
+        skipReasons.duplicate++;
         skipped++;
         return;
       }
@@ -201,6 +209,7 @@ export async function processRawItems(
       // 6. Summarize
       if (config.dryRun) {
         logger.info(`[DRY RUN] Would summarize: ${normalized.title}`);
+        skipReasons.dryRun++;
         skipped++;
         return;
       }
@@ -220,6 +229,7 @@ export async function processRawItems(
 
       if (shouldAutoSuppress(qualityScore)) {
         logger.info(`Auto-suppressed low-quality card (${qualityScore.toFixed(2)}): "${headline}"`);
+        skipReasons.lowQuality++;
         await markAsProcessed(item.id);
         skipped++;
         return;
@@ -274,6 +284,13 @@ export async function processRawItems(
   const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
   const throughput = processed > 0 ? (processed / (parseFloat(totalTime) || 1) * 60).toFixed(1) : '0';
   logger.info(`Batch complete in ${totalTime}s — ${processed} processed, ${skipped} skipped, ${failed} failed (${throughput} cards/min)`);
+  if (skipped > 0) {
+    const breakdown = Object.entries(skipReasons)
+      .filter(([, count]) => count > 0)
+      .map(([reason, count]) => `${count} ${reason}`)
+      .join(', ');
+    logger.info(`Skipped breakdown: ${breakdown}`);
+  }
 
   return { processed, skipped, failed };
 }
