@@ -39,7 +39,11 @@ protocol developers and DeFi professionals. Write like Inshorts: factual, punchy
 zero filler. Every word earns its place.`;
 
 function buildUserPromptV1(content: string): string {
-  return `Write exactly 60 words summarizing this content.
+  return `Summarize this content in no more than 60 words.
+
+Use fewer words if the content does not support 60. A short source deserves a short
+summary — never pad, never repeat, and never add a fact the content does not state to
+reach a length.
 
 Style rules:
 - Open with the single most important fact or action — never start with "The".
@@ -62,7 +66,8 @@ When given an article, first identify key technical identifiers in a <think> blo
 then write the summary. Only the text after </think> is shown to readers.`;
 
 function buildUserPromptV13(content: string): string {
-  return `Summarize this content in exactly 60 words.
+  return `Summarize this content in no more than 60 words — fewer if the content does
+not support 60. Never pad or invent detail to reach a length.
 
 Step 1: In a <think> block, list all technical identifiers you MUST preserve:
   - EIP/ERC numbers (e.g., EIP-7702)
@@ -71,7 +76,7 @@ Step 1: In a <think> block, list all technical identifiers you MUST preserve:
   - Percentages (e.g., 92.4%)
   - Named authors or entities
 
-Step 2: After </think>, write exactly 60 words incorporating as many identifiers as possible.
+Step 2: After </think>, write up to 60 words incorporating as many identifiers as possible.
 
 Rules:
 - Open with the most important fact — never start with "The".
@@ -114,10 +119,10 @@ function countWords(text: string): number {
 // ── Main Summarizer ──────────────────────────────────────────────────────
 
 const MAX_RETRIES = 3;
-const MIN_WORDS = 55;
+/** Stated ceiling. Anything at or under this is accepted as-is. */
 const MAX_WORDS = 60;
-const FALLBACK_MIN = 50;
-const FALLBACK_MAX = 65;
+/** Below this the model has not summarized anything; worth one more attempt. */
+const MIN_USEFUL_WORDS = 20;
 const HARD_MAX_WORDS = 67; // absolute ceiling — truncate anything above this
 
 // Concurrent-safe rate limiter. Serializes API calls via a promise chain so
@@ -185,9 +190,14 @@ export async function summarize(
     attempts = attempt;
     let prompt = buildUserPrompt(truncatedText);
 
-    // On retry: provide word count feedback
+    // On retry: say which way it went wrong. Only overshoot and near-empty output are
+    // worth retrying — a 43-word summary of a thin source is the correct answer, and
+    // asking again for 60 just invites invention.
     if (attempt > 1) {
-      prompt += `\n\nIMPORTANT: Your previous summary was ${lastWordCount} words. It MUST be between ${MIN_WORDS} and ${MAX_WORDS} words. Count carefully.`;
+      prompt +=
+        lastWordCount > MAX_WORDS
+          ? `\n\nIMPORTANT: Your previous summary was ${lastWordCount} words, over the ${MAX_WORDS}-word limit. Cut the least important detail. Do not exceed ${MAX_WORDS}.`
+          : `\n\nIMPORTANT: Your previous summary was only ${lastWordCount} words, which is too short to be useful. Include the concrete facts the content states.`;
     }
 
     // On retry: check entity preservation from previous attempt
@@ -217,22 +227,19 @@ export async function summarize(
     summary = extractSummaryText(rawOutput);
     lastWordCount = countWords(summary);
 
-    // Strict range: 58-62 words
-    if (lastWordCount >= MIN_WORDS && lastWordCount <= MAX_WORDS) {
+    // Accept anything within the ceiling that actually says something. Length below
+    // the ceiling is a property of the SOURCE, not a defect — chasing 55-60 on a thin
+    // article is what produced fabricated filler, and it burned three attempts (and
+    // three copies of the input) on every single card.
+    if (lastWordCount <= MAX_WORDS && lastWordCount >= MIN_USEFUL_WORDS) {
       break;
     }
 
-    // On final retry: accept looser range
+    // On final retry: accept anything inside the hard ceiling.
     if (attempt === MAX_RETRIES) {
-      if (lastWordCount >= FALLBACK_MIN && lastWordCount <= FALLBACK_MAX) {
+      if (lastWordCount >= MIN_USEFUL_WORDS && lastWordCount <= HARD_MAX_WORDS) {
         logger.warn(
-          `Summary word count ${lastWordCount} outside strict range (${MIN_WORDS}-${MAX_WORDS}), accepting after ${MAX_RETRIES} retries`
-        );
-        break;
-      }
-      if (lastWordCount >= 20 && lastWordCount <= HARD_MAX_WORDS) {
-        logger.warn(
-          `Summary word count ${lastWordCount} outside target, accepting after ${MAX_RETRIES} retries`
+          `Summary word count ${lastWordCount} outside the ${MAX_WORDS}-word limit, accepting after ${MAX_RETRIES} retries`
         );
         break;
       }

@@ -108,23 +108,20 @@ describe('summarize', () => {
     expect(mocks.mockCreate).toHaveBeenCalledTimes(2);
   });
 
-  it('retries when word count is too low and succeeds on second attempt', async () => {
-    const tooShort = wordsOf(30);
-    const justRight = wordsOf(58);
-    const headlineText = 'Test Headline';
-
-    // Attempt 1: too short (30 words < 55)
-    mocks.mockCreate.mockResolvedValueOnce(makeResponse(tooShort));
-    // Attempt 2: within range
-    mocks.mockCreate.mockResolvedValueOnce(makeResponse(justRight));
-    // Headline call
-    mocks.mockCreate.mockResolvedValueOnce(makeResponse(headlineText));
+  it('accepts a short summary instead of retrying for length', async () => {
+    // A short summary is usually a property of a thin SOURCE, not a defect. Retrying
+    // for length is what made the model pad with invented detail, and it burned three
+    // attempts — three copies of the article — on every card.
+    const short = wordsOf(30);
+    mocks.mockCreate.mockResolvedValueOnce(makeResponse(short));
+    mocks.mockCreate.mockResolvedValueOnce(makeResponse('Test Headline'));
 
     const result = await summarize(defaultText, defaultTitle);
 
-    expect(result.summary).toBe(justRight);
-    // 3 API calls: 2 summary attempts + 1 headline
-    expect(mocks.mockCreate).toHaveBeenCalledTimes(3);
+    expect(result.summary).toBe(short);
+    // 2 calls: one summary attempt accepted, one headline. Not 4.
+    expect(mocks.mockCreate).toHaveBeenCalledTimes(2);
+    expect(result.signals.attempts).toBe(1);
   });
 
   it('retries when word count is too high and succeeds on second attempt', async () => {
@@ -132,7 +129,7 @@ describe('summarize', () => {
     const justRight = wordsOf(59);
     const headlineText = 'Test Headline';
 
-    // Attempt 1: too long (80 words > 60)
+    // Attempt 1: over the 60-word ceiling, which IS worth retrying
     mocks.mockCreate.mockResolvedValueOnce(makeResponse(tooLong));
     // Attempt 2: within range
     mocks.mockCreate.mockResolvedValueOnce(makeResponse(justRight));
@@ -145,50 +142,32 @@ describe('summarize', () => {
     expect(mocks.mockCreate).toHaveBeenCalledTimes(3);
   });
 
-  it('accepts fallback range (50-65) on final retry', async () => {
-    const offTarget = wordsOf(30);
-    const stillOff = wordsOf(30);
-    const fallbackAcceptable = wordsOf(52); // outside strict 55-60 but within 50-65
-    const headlineText = 'Test Headline';
-
-    // Attempt 1: too short
-    mocks.mockCreate.mockResolvedValueOnce(makeResponse(offTarget));
-    // Attempt 2: too short
-    mocks.mockCreate.mockResolvedValueOnce(makeResponse(stillOff));
-    // Attempt 3 (final): accepted in fallback range 50-65
-    mocks.mockCreate.mockResolvedValueOnce(makeResponse(fallbackAcceptable));
-    // Headline call
-    mocks.mockCreate.mockResolvedValueOnce(makeResponse(headlineText));
+  it('takes any length under the ceiling on the first attempt', async () => {
+    // 52 words used to be "outside the strict range" and cost two more attempts.
+    // Under the ceiling it is just a valid summary.
+    const acceptable = wordsOf(52);
+    mocks.mockCreate.mockResolvedValueOnce(makeResponse(acceptable));
+    mocks.mockCreate.mockResolvedValueOnce(makeResponse('Test Headline'));
 
     const result = await summarize(defaultText, defaultTitle);
 
-    expect(result.summary).toBe(fallbackAcceptable);
-    expect(mocks.mockLogger.warn).toHaveBeenCalledWith(
-      expect.stringContaining('outside strict range'),
-    );
+    expect(result.summary).toBe(acceptable);
+    expect(mocks.mockCreate).toHaveBeenCalledTimes(2);
   });
 
-  it('accepts hard max range (20-67) on final retry', async () => {
-    const offTarget = wordsOf(30);
-    const stillOff = wordsOf(30);
-    const hardRangeAcceptable = wordsOf(25); // outside 50-65 but within 20-67
-    const headlineText = 'Test Headline';
-
-    // Attempt 1
-    mocks.mockCreate.mockResolvedValueOnce(makeResponse(offTarget));
-    // Attempt 2
-    mocks.mockCreate.mockResolvedValueOnce(makeResponse(stillOff));
-    // Attempt 3 (final): 25 words, accepted in hard range 20-67
-    mocks.mockCreate.mockResolvedValueOnce(makeResponse(hardRangeAcceptable));
-    // Headline
-    mocks.mockCreate.mockResolvedValueOnce(makeResponse(headlineText));
+  it('retries a near-empty answer, since that is a real failure', async () => {
+    // Under MIN_USEFUL_WORDS the model has not summarized anything, so it is worth
+    // asking again — this is the one "too short" case that still earns a retry.
+    const nearEmpty = wordsOf(8);
+    const usable = wordsOf(44);
+    mocks.mockCreate.mockResolvedValueOnce(makeResponse(nearEmpty));
+    mocks.mockCreate.mockResolvedValueOnce(makeResponse(usable));
+    mocks.mockCreate.mockResolvedValueOnce(makeResponse('Test Headline'));
 
     const result = await summarize(defaultText, defaultTitle);
 
-    expect(result.summary).toBe(hardRangeAcceptable);
-    expect(mocks.mockLogger.warn).toHaveBeenCalledWith(
-      expect.stringContaining('outside target'),
-    );
+    expect(result.summary).toBe(usable);
+    expect(result.signals.attempts).toBe(2);
   });
 
   it('truncates to 60 words if over HARD_MAX_WORDS (67) on final retry', async () => {
@@ -229,8 +208,8 @@ describe('summarize', () => {
   });
 
   it('includes entity preservation feedback in retry prompt when entities are missing', async () => {
-    const attempt1 = wordsOf(30); // too short → triggers retry
-    const attempt2 = wordsOf(58); // within range
+    const attempt1 = wordsOf(80); // over the 60-word ceiling → triggers a retry
+    const attempt2 = wordsOf(58); // under the ceiling → accepted
     const headlineText = 'Test Headline';
 
     mocks.mockCreate.mockResolvedValueOnce(makeResponse(attempt1));
@@ -291,7 +270,7 @@ describe('summarize', () => {
 
     // V1 user prompt uses "Write exactly 60 words"
     const userMessage = summaryCall.messages.find((m: { role: string }) => m.role === 'user');
-    expect(userMessage.content).toContain('Write exactly 60 words');
+    expect(userMessage.content).toContain('in no more than 60 words');
 
     // Model should be Ollama
     expect(summaryCall.model).toBe('llama3.1:8b');
@@ -319,7 +298,7 @@ describe('summarize', () => {
 
     // V1.3 user prompt uses "Summarize this content in exactly 60 words"
     const userMessage = summaryCall.messages.find((m: { role: string }) => m.role === 'user');
-    expect(userMessage.content).toContain('Summarize this content in exactly 60 words');
+    expect(userMessage.content).toContain('in no more than 60 words');
 
     // Model should be gpt-4.1-mini
     expect(summaryCall.model).toBe('gpt-4.1-mini');

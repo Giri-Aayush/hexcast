@@ -67,6 +67,12 @@ export function loadConfig() {
     // Minimum gap between LLM calls, ms. 0 local, 150 remote (~400 rpm).
     llmMinIntervalMs: parseInt(process.env.LLM_MIN_INTERVAL_MS ?? (isLocalLlm ? '0' : '150'), 10),
     llmMaxInputChars: parseInt(process.env.LLM_MAX_INPUT_CHARS ?? (isLocalLlm ? '6000' : '8000'), 10),
+    // Minimum source text before an item is worth summarizing. Below this the model
+    // has to invent to fill a card, and invented facts are worse than no card on a
+    // product that promises factual accuracy. 600 chars is roughly 100 words of
+    // source, so even a 40-60 word card is a real compression rather than a restatement
+    // padded out. Lowering this buys more cards and pays for them in invented detail.
+    minSourceChars: parseInt(process.env.MIN_SOURCE_CHARS ?? '600', 10),
   };
 }
 

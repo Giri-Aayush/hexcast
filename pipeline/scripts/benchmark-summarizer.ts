@@ -30,6 +30,10 @@ const { data, error } = await supabase
   .from('raw_items')
   .select('*')
   .eq('processed', false)
+  // Deterministic order matters: without it Postgres can hand back different rows
+  // each run, and two prompt variants would be scored on different items — which
+  // makes the comparison meaningless in a way that is invisible in the output.
+  .order('id', { ascending: true })
   .limit(sampleSize * 2); // over-fetch: normalize() rejects some as empty
 
 if (error) throw new Error(error.message);
@@ -87,10 +91,18 @@ if (rows.length === 0) {
 const pct = (n: number) => `${Math.round((n / rows.length) * 100)}%`;
 const avg = (get: (r: Row) => number) => (rows.reduce((sum, r) => sum + get(r), 0) / rows.length).toFixed(2);
 
+const sorted = [...rows].map((r) => r.words).sort((a, b) => a - b);
+const median = sorted[Math.floor(sorted.length / 2)];
+
 console.log('─'.repeat(58));
-console.log(`in 55-60 target      ${pct(rows.filter((r) => r.words >= 55 && r.words <= 60).length)}`);
-console.log(`in 50-65 fallback    ${pct(rows.filter((r) => r.words >= 50 && r.words <= 65).length)}`);
-console.log(`over 67 hard ceiling ${pct(rows.filter((r) => r.words > 67).length)}`);
+// The target is a CEILING, not a quota: a summary shorter than 60 words is the
+// correct answer for a thin source. Reporting "% hitting 55-60" would score honesty
+// as failure, which is what sent us chasing an impossible number in the first place.
+console.log(`within 60-word limit ${pct(rows.filter((r) => r.words <= 60).length)}`);
+console.log(`over the limit       ${pct(rows.filter((r) => r.words > 60).length)}`);
+console.log(`over 67 truncated    ${pct(rows.filter((r) => r.words > 67).length)}`);
+console.log(`median words         ${median}`);
+console.log(`word spread          ${sorted[0]}-${sorted[sorted.length - 1]}`);
 console.log(`entities preserved   ${pct(rows.filter((r) => r.preserved).length)}`);
 console.log(`first-try            ${pct(rows.filter((r) => r.attempts === 1).length)}`);
 console.log(`truncated            ${pct(rows.filter((r) => r.truncated).length)}`);
