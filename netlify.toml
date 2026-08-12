@@ -1,6 +1,12 @@
 [build]
   command = "npm ci && npm run build"
   publish = "web/.next"
+  # Skip the build entirely when nothing the deployed site depends on changed.
+  # Half of one heavy session's builds were pipeline-only PRs (summarizer/config)
+  # that produce an identical site — a wasted build each. `ignore` exits 0 to skip:
+  # git diff --quiet exits 0 when these paths are unchanged, so a pipeline-only
+  # change skips, and any web/, shared-package, dependency, or config change builds.
+  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- web/ packages/ package.json package-lock.json netlify.toml" 
 
 [build.environment]
   NODE_VERSION = "22"
