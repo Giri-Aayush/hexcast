@@ -9,10 +9,13 @@ import { Pool } from 'pg';
  * environment stays a clean no-op instead of a plugin erroring at runtime.
  * Get keys from the Better Auth Infra dashboard; set all three or none.
  */
-// Gate on the API key alone: the onboarding flow hands out a key and expects
-// bare dash() to work, with the URLs defaulting inside the plugin. Requiring all
-// three would leave the plugin dormant after a by-the-book onboarding.
-const infraConfigured = !!process.env.BETTER_AUTH_API_KEY;
+// Gate on key AND apiUrl. Measured, not assumed: with only the key set, the
+// plugin builds fetch('/security/check') from an undefined apiUrl and errors on
+// every auth request (failing open, but noisily and doing nothing). kvUrl stays
+// optional. If onboarding only surfaced the key, the API URL is on the same
+// dashboard — do not activate without it.
+const infraConfigured =
+  !!process.env.BETTER_AUTH_API_KEY && !!process.env.BETTER_AUTH_API_URL;
 
 const infraPlugins = infraConfigured
   ? [
