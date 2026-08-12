@@ -1,34 +1,78 @@
 import OpenAI from 'openai';
 import { logger } from '../utils/logger.js';
 import { checkEntityPreservation } from './entity-checker.js';
-import { loadConfig } from '../config.js';
+import { loadConfig, type LlmProvider } from '../config.js';
 
 // ── AI Client Setup ────────────────────────────────────────────────────
 
-interface LlmClient {
+interface Endpoint extends LlmProvider {
   client: OpenAI;
-  model: string;
-  prompt: 'v1' | 'v1.3';
-  /** Gap enforced between calls, ms. 0 for a local endpoint. */
-  minIntervalMs: number;
-  maxInputChars: number;
 }
 
 /**
- * Any OpenAI-compatible endpoint: OpenAI, Groq, NVIDIA NIM, a self-hosted vLLM, or
- * a local Ollama. This used to be a hardcoded fork on PIPELINE_ENV, which made
+ * Any OpenAI-compatible endpoint: OpenAI, Groq, NVIDIA NIM, OpenRouter, a self-hosted
+ * vLLM, or a local Ollama. This used to be a hardcoded fork on PIPELINE_ENV, which made
  * moving off paid OpenAI a code change rather than a config one.
  */
-function createClient(): LlmClient {
-  const config = loadConfig();
+function loadEndpoints(): Endpoint[] {
+  return loadConfig().llmProviders.map((provider) => ({
+    ...provider,
+    client: new OpenAI({ apiKey: provider.apiKey, baseURL: provider.baseUrl }),
+  }));
+}
 
-  return {
-    client: new OpenAI({ apiKey: config.llmApiKey, baseURL: config.llmBaseUrl }),
-    model: config.llmModel,
-    prompt: config.llmPrompt,
-    minIntervalMs: config.llmMinIntervalMs,
-    maxInputChars: config.llmMaxInputChars,
-  };
+/**
+ * Worth trying the next provider, or worth surfacing?
+ *
+ * Rate limits, server faults and transport failures are the provider's problem and
+ * another one may answer. A rejected key or a malformed request is OUR problem, and
+ * falling through would hide it behind a working fallback — which is exactly how a dead
+ * OpenAI key sat undetected while every item failed.
+ */
+function isWorthFailingOver(error: unknown): boolean {
+  const status = (error as { status?: number })?.status;
+  if (status === undefined) return true; // no HTTP status: timeout, DNS, socket
+  if (status === 429) return true;
+  return status >= 500;
+}
+
+/**
+ * Call the first provider that answers.
+ *
+ * Wraps the individual API CALL rather than the item, because the retry loop below
+ * retries WORD COUNT, not transport. Sharing them would make a 429 increment `attempts`,
+ * and `attempts` feeds quality_score — a card would score lower because a provider was
+ * busy, which is scoring the infrastructure as summary quality.
+ */
+async function callWithFailover(
+  endpoints: Endpoint[],
+  build: (endpoint: Endpoint) => Parameters<OpenAI['chat']['completions']['create']>[0],
+): Promise<{ text: string; endpoint: Endpoint }> {
+  let lastError: unknown;
+
+  for (const [index, endpoint] of endpoints.entries()) {
+    try {
+      await rateLimit(endpoint);
+      const response = await endpoint.client.chat.completions.create(build(endpoint));
+      const text =
+        ('choices' in response ? response.choices[0]?.message?.content : undefined)?.trim() ?? '';
+
+      if (index > 0) logger.warn(`Used fallback provider ${endpoint.label}`);
+      return { text, endpoint };
+    } catch (error) {
+      lastError = error;
+      const remaining = endpoints.length - index - 1;
+
+      if (!isWorthFailingOver(error) || remaining === 0) throw error;
+
+      logger.warn(
+        `${endpoint.label} failed (${(error as { status?: number })?.status ?? 'no status'}), ` +
+          `trying ${endpoints[index + 1].label}`,
+      );
+    }
+  }
+
+  throw lastError;
 }
 
 // ── Prompts (from PROMPT.md benchmarks) ─────────────────────────────────
@@ -125,26 +169,29 @@ const MAX_WORDS = 60;
 const MIN_USEFUL_WORDS = 20;
 const HARD_MAX_WORDS = 67; // absolute ceiling — truncate anything above this
 
-// Concurrent-safe rate limiter. Serializes API calls via a promise chain so
-// concurrent workers stay spaced apart — the interval comes from config, because a
-// free tier's per-minute cap is a deployment fact, not a code constant.
-let _rateLimitChain = Promise.resolve();
-let _lastApiCallAt = 0;
+// Concurrent-safe rate limiter, PER PROVIDER. Serializes calls through a promise chain
+// so concurrent workers stay spaced apart. State is keyed by base URL because a shared
+// limiter would pace a fallback on the primary's schedule — either needlessly slow or
+// straight over the fallback's own cap, and invisible until it misbehaves in production.
+const limiters = new Map<string, { chain: Promise<void>; lastCallAt: number }>();
 
-async function rateLimit(minIntervalMs: number) {
-  if (minIntervalMs <= 0) return;
-  // Each caller chains after the previous — ensures serial spacing
-  const prev = _rateLimitChain;
-  let resolve: () => void;
-  _rateLimitChain = new Promise<void>((r) => { resolve = r; });
+async function rateLimit(endpoint: { baseUrl: string; minIntervalMs: number }) {
+  if (endpoint.minIntervalMs <= 0) return;
+
+  const limiter = limiters.get(endpoint.baseUrl) ?? { chain: Promise.resolve(), lastCallAt: 0 };
+  limiters.set(endpoint.baseUrl, limiter);
+
+  const prev = limiter.chain;
+  let release: () => void;
+  limiter.chain = new Promise<void>((r) => { release = r; });
   await prev;
-  const now = Date.now();
-  const elapsed = now - _lastApiCallAt;
-  if (elapsed < minIntervalMs) {
-    await new Promise((r) => setTimeout(r, minIntervalMs - elapsed));
+
+  const elapsed = Date.now() - limiter.lastCallAt;
+  if (elapsed < endpoint.minIntervalMs) {
+    await new Promise((r) => setTimeout(r, endpoint.minIntervalMs - elapsed));
   }
-  _lastApiCallAt = Date.now();
-  resolve!();
+  limiter.lastCallAt = Date.now();
+  release!();
 }
 
 /**
@@ -166,12 +213,19 @@ export async function summarize(
   fullText: string,
   title: string
 ): Promise<{ headline: string; summary: string; signals: SummarySignals }> {
-  const { client, model, prompt: promptVersion, minIntervalMs, maxInputChars } = createClient();
+  const endpoints = loadEndpoints();
+  const primary = endpoints[0];
+  const promptVersion = primary.prompt;
 
-  logger.debug(`Summarizing with ${model} (${promptVersion})`);
+  logger.debug(
+    `Summarizing with ${primary.model} (${promptVersion})` +
+      (endpoints.length > 1 ? `, ${endpoints.length - 1} fallback(s)` : ''),
+  );
 
-  // Truncate to keep inference fast and within token limits
-  const maxChars = maxInputChars;
+  // Truncate to keep inference fast and within token limits. Taken from the primary so
+  // the text sent is identical whichever provider ends up answering — otherwise a
+  // failover would silently summarize a different amount of the article.
+  const maxChars = primary.maxInputChars;
   const truncatedText =
     fullText.length > maxChars
       ? fullText.slice(0, maxChars) + '\n\n[Content truncated]'
@@ -208,18 +262,15 @@ export async function summarize(
       }
     }
 
-    await rateLimit(minIntervalMs);
-
-    const response = await client.chat.completions.create({
-      model,
+    const { text: rawOutput } = await callWithFailover(endpoints, (endpoint) => ({
+      ...endpoint.extraBody,
+      model: endpoint.model,
       max_tokens: 300,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: prompt },
       ],
-    });
-
-    const rawOutput = response.choices[0]?.message?.content?.trim() ?? '';
+    }));
 
     // Sanitize in both modes: prod (V1.3) emits a <think> block, and dev models
     // narrate ("Here is a 60-word news card…"). Must happen before the word
@@ -281,10 +332,12 @@ export async function summarize(
   }
 
   // Generate headline
-  await rateLimit(minIntervalMs);
 
-  const headlineResponse = await client.chat.completions.create({
-    model,
+  // The headline call gets failover too. Wrapping only the summary loop would surface as
+  // "summaries fine, headlines 429", which is a confusing way to find a provider is down.
+  const { text: headlineText } = await callWithFailover(endpoints, (endpoint) => ({
+    ...endpoint.extraBody,
+    model: endpoint.model,
     max_tokens: 50,
     messages: [
       {
@@ -292,11 +345,9 @@ export async function summarize(
         content: `Write a punchy headline of 6-10 words for this news. Start with a verb or the key entity. Use Title Case — capitalize every word except articles, conjunctions and short prepositions. No quotes, no period at the end. Output only the headline.\n\nTitle: ${title}\n\nSummary: ${summary}`,
       },
     ],
-  });
+  }));
 
-  const headline =
-    headlineResponse.choices[0]?.message?.content?.trim() ??
-    title.split(' ').slice(0, 12).join(' ');
+  const headline = headlineText || title.split(' ').slice(0, 12).join(' ');
 
   return {
     headline,

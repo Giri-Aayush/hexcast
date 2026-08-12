@@ -49,24 +49,46 @@ function wordsOf(n: number): string {
   return Array.from({ length: n }, (_, i) => `word${i}`).join(' ');
 }
 
+/** Matches loadConfig()'s shape: providers in preference order, primary first. */
 const localLlmConfig = {
   env: 'dev' as const,
-  llmBaseUrl: 'http://localhost:11434/v1',
-  llmApiKey: 'ollama',
-  llmModel: 'llama3.1:8b',
-  llmPrompt: 'v1' as const,
-  llmMinIntervalMs: 0,
-  llmMaxInputChars: 6000,
+  llmProviders: [
+    {
+      label: 'localhost:11434',
+      baseUrl: 'http://localhost:11434/v1',
+      apiKey: 'ollama',
+      model: 'llama3.1:8b',
+      prompt: 'v1' as const,
+      minIntervalMs: 0,
+      maxInputChars: 6000,
+      extraBody: {},
+    },
+  ],
 };
 
 const remoteLlmConfig = {
   env: 'prod' as const,
-  llmBaseUrl: 'https://api.openai.com/v1',
-  llmApiKey: 'sk-test-key',
-  llmModel: 'gpt-4.1-mini',
-  llmPrompt: 'v1.3' as const,
-  llmMinIntervalMs: 150,
-  llmMaxInputChars: 8000,
+  llmProviders: [
+    {
+      label: 'api.openai.com',
+      baseUrl: 'https://api.openai.com/v1',
+      apiKey: 'sk-test-key',
+      model: 'gpt-4.1-mini',
+      prompt: 'v1.3' as const,
+      minIntervalMs: 0, // no real waiting in tests
+      maxInputChars: 8000,
+      extraBody: {},
+    },
+  ],
+};
+
+/** Primary that always refuses, plus a working fallback. */
+const failoverConfig = {
+  env: 'prod' as const,
+  llmProviders: [
+    { ...remoteLlmConfig.llmProviders[0], label: 'primary.test', baseUrl: 'https://primary.test/v1', model: 'primary-model' },
+    { ...remoteLlmConfig.llmProviders[0], label: 'fallback.test', baseUrl: 'https://fallback.test/v1', model: 'fallback-model' },
+  ],
 };
 
 const defaultTitle = 'Ethereum EIP-7702 Proposal Advances';
@@ -424,5 +446,97 @@ ${actualSummary}`;
     expect(userMessage.content).not.toContain('A'.repeat(10000));
     // But the first 8000 chars should be present
     expect(userMessage.content).toContain('A'.repeat(8000));
+  });
+});
+
+describe('provider failover', () => {
+  /** An SDK-shaped HTTP error, since that is what the failover decision reads. */
+  function httpError(status: number) {
+    return Object.assign(new Error(`HTTP ${status}`), { status });
+  }
+
+  it('falls over to the next provider on a rate limit', async () => {
+    mocks.mockLoadConfig.mockReturnValue({ ...failoverConfig });
+    mocks.mockCreate
+      .mockRejectedValueOnce(httpError(429))          // primary refuses
+      .mockResolvedValueOnce(makeResponse(wordsOf(48))) // fallback answers
+      .mockResolvedValueOnce(makeResponse('Fallback Headline'));
+
+    const result = await summarize(defaultText, defaultTitle);
+
+    expect(result.summary).toBe(wordsOf(48));
+    expect(mocks.mockCreate.mock.calls[1][0].model).toBe('fallback-model');
+    expect(mocks.mockLogger.warn).toHaveBeenCalledWith(expect.stringContaining('Used fallback provider'));
+  });
+
+  it('falls over on a server fault', async () => {
+    mocks.mockLoadConfig.mockReturnValue({ ...failoverConfig });
+    mocks.mockCreate
+      .mockRejectedValueOnce(httpError(503))
+      .mockResolvedValueOnce(makeResponse(wordsOf(50)))
+      .mockResolvedValueOnce(makeResponse('Headline'));
+
+    await expect(summarize(defaultText, defaultTitle)).resolves.toBeDefined();
+  });
+
+  it('falls over when there is no HTTP status at all', async () => {
+    // Timeouts, DNS failures and dropped sockets carry no status. They are the
+    // provider's problem, so another one may answer.
+    mocks.mockLoadConfig.mockReturnValue({ ...failoverConfig });
+    mocks.mockCreate
+      .mockRejectedValueOnce(new Error('Connection error.'))
+      .mockResolvedValueOnce(makeResponse(wordsOf(45)))
+      .mockResolvedValueOnce(makeResponse('Headline'));
+
+    await expect(summarize(defaultText, defaultTitle)).resolves.toBeDefined();
+  });
+
+  it('does NOT fall over on a rejected key — it surfaces', async () => {
+    // The whole point. A dead key that quietly falls through to a working fallback is
+    // how a broken primary stays hidden until the fallback runs out too. That exact
+    // failure — a dead OpenAI key — cost an afternoon and every card in a prod run.
+    mocks.mockLoadConfig.mockReturnValue({ ...failoverConfig });
+    mocks.mockCreate.mockRejectedValueOnce(httpError(401));
+
+    await expect(summarize(defaultText, defaultTitle)).rejects.toThrow('HTTP 401');
+    // One attempt only: the fallback must not be consulted.
+    expect(mocks.mockCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it('does NOT fall over on a malformed request', async () => {
+    mocks.mockLoadConfig.mockReturnValue({ ...failoverConfig });
+    mocks.mockCreate.mockRejectedValueOnce(httpError(400));
+
+    await expect(summarize(defaultText, defaultTitle)).rejects.toThrow('HTTP 400');
+    expect(mocks.mockCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it('gives up when every provider refuses', async () => {
+    mocks.mockLoadConfig.mockReturnValue({ ...failoverConfig });
+    mocks.mockCreate.mockRejectedValue(httpError(429));
+
+    await expect(summarize(defaultText, defaultTitle)).rejects.toThrow('HTTP 429');
+    expect(mocks.mockCreate).toHaveBeenCalledTimes(2); // primary + one fallback
+  });
+
+  it('sends each provider its own model and extra body', async () => {
+    mocks.mockLoadConfig.mockReturnValue({
+      env: 'prod' as const,
+      llmProviders: [
+        { ...failoverConfig.llmProviders[0], extraBody: { reasoning: { enabled: false } } },
+        { ...failoverConfig.llmProviders[1], extraBody: {} },
+      ],
+    });
+    mocks.mockCreate
+      .mockRejectedValueOnce(httpError(429))
+      .mockResolvedValueOnce(makeResponse(wordsOf(48)))
+      .mockResolvedValueOnce(makeResponse('Headline'));
+
+    await summarize(defaultText, defaultTitle);
+
+    // Provider-specific params must not leak across a failover: the primary needs
+    // reasoning disabled, the fallback does not understand the param at all.
+    expect(mocks.mockCreate.mock.calls[0][0].reasoning).toEqual({ enabled: false });
+    expect(mocks.mockCreate.mock.calls[1][0].reasoning).toBeUndefined();
   });
 });
