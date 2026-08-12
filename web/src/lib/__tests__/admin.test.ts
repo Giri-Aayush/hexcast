@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock('@clerk/nextjs/server', () => ({
+vi.mock('@/lib/server-auth', () => ({
   auth: vi.fn(),
 }));
 
 import { isAdmin } from '../admin';
-import { auth } from '@clerk/nextjs/server';
+import { auth } from '@/lib/server-auth';
 
 const mockAuth = vi.mocked(auth);
 

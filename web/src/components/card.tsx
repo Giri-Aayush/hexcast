@@ -1,7 +1,7 @@
 'use client';
 
 import { memo, useEffect, useState, useRef } from 'react';
-import { useUser, useClerk } from '@clerk/nextjs';
+import { useUser, useAuthActions } from '@/lib/auth-ui';
 import type { Card as CardType } from '@hexcast/shared';
 import {
   relativeTime,
@@ -39,7 +39,7 @@ export const Card = memo(function Card({ card, position }: CardProps) {
   const shareRef = useRef<HTMLDivElement>(null);
 
   const { isSignedIn } = useUser();
-  const clerk = useClerk();
+  const { openSignIn } = useAuthActions();
   const { isSaved, toggleSave, initialized } = useSaved();
   const { getUserReaction, getCounts, react } = useReactions();
   const saved = initialized && isSaved(card.id);
@@ -108,7 +108,7 @@ export const Card = memo(function Card({ card, position }: CardProps) {
     e.stopPropagation();
     if (flagged) return;
     if (isSignedIn === false) {
-      clerk.openSignIn();
+      openSignIn();
       return;
     }
     if (!isSignedIn) return;
@@ -151,7 +151,7 @@ export const Card = memo(function Card({ card, position }: CardProps) {
   async function handleReaction(e: React.MouseEvent, type: 'up' | 'down') {
     e.stopPropagation();
     if (isSignedIn === false) {
-      clerk.openSignIn();
+      openSignIn();
       return;
     }
     if (!isSignedIn) return;
@@ -165,7 +165,7 @@ export const Card = memo(function Card({ card, position }: CardProps) {
   async function handleSave(e: React.MouseEvent) {
     e.stopPropagation();
     if (isSignedIn === false) {
-      clerk.openSignIn();
+      openSignIn();
       return;
     }
     if (!isSignedIn) return;

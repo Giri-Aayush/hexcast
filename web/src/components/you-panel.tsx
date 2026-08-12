@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { SignedIn, SignedOut, SignInButton, SignOutButton, useUser } from '@clerk/nextjs';
+import { SignedIn, SignedOut, SignInButton, SignOutButton, useUser } from '@/lib/auth-ui';
 import { useSaved } from '@/stores/saved';
 import { usePreferences } from '@/stores/preferences';
 
@@ -23,9 +23,12 @@ export function YouPanel() {
   }, [user, init]);
 
   const initials =
-    (user?.firstName?.[0] ?? '') + (user?.lastName?.[0] ?? '') ||
-    user?.primaryEmailAddress?.emailAddress?.slice(0, 2).toUpperCase() ||
-    '··';
+    (user?.name ?? user?.email ?? '··')
+      .split(/\s+/)
+      .map((w) => w[0])
+      .slice(0, 2)
+      .join('')
+      .toUpperCase() || '··';
 
   return (
     <>
@@ -34,7 +37,7 @@ export function YouPanel() {
           <span className="hx-you-avatar">{initials.toUpperCase()}</span>
           <div>
             <div className="hx-you-name">
-              {user?.fullName ?? user?.primaryEmailAddress?.emailAddress ?? 'Signed in'}
+              {user?.name ?? user?.email ?? 'Signed in'}
             </div>
             <div className="hx-you-sub">
               READER{user?.createdAt ? ` · SINCE ${new Date(user.createdAt).getFullYear()}` : ''}

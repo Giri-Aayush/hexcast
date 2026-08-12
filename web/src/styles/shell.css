@@ -919,3 +919,112 @@
   font: 400 12px/1.45 var(--font-sans);
   color: var(--ink-dim);
 }
+
+/* ── Sign-in (3d soft wall) ───────────────────────────────────────────── */
+.hx-signin {
+  display: flex;
+  flex-direction: column;
+}
+
+/* The one large dark mass on the light ground, same as the nav pill's role. */
+.hx-wall {
+  margin: 8vh auto 0;
+  width: 100%;
+  max-width: 400px;
+  background: var(--ink);
+  color: var(--surface);
+  border-radius: var(--radius-card);
+  padding: 26px 24px 22px;
+}
+
+.hx-wall-kicker {
+  font: 500 9.5px/1 var(--font-mono);
+  letter-spacing: 0.16em;
+  color: #9a9aa4;
+  margin-bottom: 12px;
+}
+
+.hx-wall h1 {
+  margin: 0 0 8px;
+  font: 600 22px/1.25 var(--font-sans);
+  letter-spacing: -0.025em;
+  text-wrap: pretty;
+}
+
+.hx-wall > p {
+  margin: 0 0 20px;
+  font: 400 13.5px/1.6 var(--font-sans);
+  color: #c9c9d1;
+  text-wrap: pretty;
+}
+
+.hx-wall-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.hx-wall-form input {
+  min-height: var(--touch-min);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: var(--radius-control);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--surface);
+  font: 400 14px/1 var(--font-sans);
+  padding: 0 14px;
+  outline: none;
+}
+
+.hx-wall-form input::placeholder {
+  color: #9a9aa4;
+}
+
+.hx-wall-form input:focus-visible {
+  border-color: var(--surface);
+}
+
+.hx-wall-error {
+  margin: 2px 0 0;
+  font: 400 12.5px/1.5 var(--font-sans);
+  color: #e8a49f;
+}
+
+/* Inverted CTA: light slab inside the dark wall, mirroring the nav's active tab. */
+.hx-wall-cta {
+  min-height: var(--touch-min);
+  border: 0;
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--ink);
+  font: 500 13px/1 var(--font-sans);
+  cursor: pointer;
+  margin-top: 4px;
+}
+
+.hx-wall-cta:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.hx-wall-switch {
+  width: 100%;
+  margin-top: 16px;
+  min-height: 36px;
+  border: 0;
+  background: none;
+  font: 400 9.5px/1 var(--font-mono);
+  letter-spacing: 0.14em;
+  color: #9a9aa4;
+  cursor: pointer;
+}
+
+.hx-wall-switch:hover {
+  color: var(--surface);
+}
+
+.hx-wall-form input:focus-visible,
+.hx-wall-cta:focus-visible,
+.hx-wall-switch:focus-visible {
+  outline: 2px solid var(--surface);
+  outline-offset: 2px;
+}

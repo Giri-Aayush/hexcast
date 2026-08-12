@@ -1,4 +1,4 @@
-import { auth } from '@clerk/nextjs/server';
+import { auth } from '@/lib/server-auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { getCards, getPersonalizedCards } from '@/lib/queries';
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useUser } from '@clerk/nextjs';
+import { useUser } from '@/lib/auth-ui';
 import { usePathname } from 'next/navigation';
 import { toast } from './toast';
 import { capture } from '@/lib/posthog';

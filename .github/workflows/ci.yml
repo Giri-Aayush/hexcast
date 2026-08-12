@@ -50,5 +50,6 @@ jobs:
         env:
           SUPABASE_URL: https://placeholder.supabase.co
           SUPABASE_SERVICE_KEY: placeholder-key
-          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_live_Y2xlcmsuaGV4Y2FzdC54eXok
-          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          # Build-time placeholders — the build never opens a connection.
+          DATABASE_URL: postgresql://placeholder:placeholder@127.0.0.1:5432/placeholder
+          BETTER_AUTH_SECRET: ci-placeholder-secret

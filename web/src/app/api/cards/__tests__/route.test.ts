@@ -3,7 +3,7 @@ import { NextRequest } from 'next/server';
 
 // --- Mocks (before route import) ---
 
-vi.mock('@clerk/nextjs/server', () => ({
+vi.mock('@/lib/server-auth', () => ({
   auth: vi.fn(),
 }));
 
@@ -13,7 +13,7 @@ vi.mock('@/lib/queries', () => ({
 }));
 
 import { GET } from '../route';
-import { auth } from '@clerk/nextjs/server';
+import { auth } from '@/lib/server-auth';
 import { getCards, getPersonalizedCards } from '@/lib/queries';
 
 const mockAuth = vi.mocked(auth);
