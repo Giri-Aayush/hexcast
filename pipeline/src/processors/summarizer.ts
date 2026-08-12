@@ -5,22 +5,29 @@ import { loadConfig } from '../config.js';
 
 // ── AI Client Setup ────────────────────────────────────────────────────
 
-function createClient(): { client: OpenAI; model: string; mode: 'prod' | 'dev' } {
+interface LlmClient {
+  client: OpenAI;
+  model: string;
+  prompt: 'v1' | 'v1.3';
+  /** Gap enforced between calls, ms. 0 for a local endpoint. */
+  minIntervalMs: number;
+  maxInputChars: number;
+}
+
+/**
+ * Any OpenAI-compatible endpoint: OpenAI, Groq, NVIDIA NIM, a self-hosted vLLM, or
+ * a local Ollama. This used to be a hardcoded fork on PIPELINE_ENV, which made
+ * moving off paid OpenAI a code change rather than a config one.
+ */
+function createClient(): LlmClient {
   const config = loadConfig();
 
-  if (config.env === 'prod') {
-    return {
-      client: new OpenAI({ apiKey: config.openaiApiKey }),
-      model: 'gpt-4.1-mini',
-      mode: 'prod',
-    };
-  }
-
-  // Dev: local Ollama
   return {
-    client: new OpenAI({ apiKey: 'ollama', baseURL: config.ollamaBaseUrl }),
-    model: config.ollamaModel,
-    mode: 'dev',
+    client: new OpenAI({ apiKey: config.llmApiKey, baseURL: config.llmBaseUrl }),
+    model: config.llmModel,
+    prompt: config.llmPrompt,
+    minIntervalMs: config.llmMinIntervalMs,
+    maxInputChars: config.llmMaxInputChars,
   };
 }
 
@@ -113,14 +120,14 @@ const FALLBACK_MIN = 50;
 const FALLBACK_MAX = 65;
 const HARD_MAX_WORDS = 67; // absolute ceiling — truncate anything above this
 
-// Concurrent-safe rate limiter for OpenAI Mini (Tier 1: 500 RPM)
-// Serializes API calls via promise chain so concurrent workers are spaced ≥150ms apart
-const MIN_API_INTERVAL_MS = 150; // ~400 RPM max to stay safe
+// Concurrent-safe rate limiter. Serializes API calls via a promise chain so
+// concurrent workers stay spaced apart — the interval comes from config, because a
+// free tier's per-minute cap is a deployment fact, not a code constant.
 let _rateLimitChain = Promise.resolve();
 let _lastApiCallAt = 0;
 
-async function rateLimit(mode: 'prod' | 'dev') {
-  if (mode !== 'prod') return;
+async function rateLimit(minIntervalMs: number) {
+  if (minIntervalMs <= 0) return;
   // Each caller chains after the previous — ensures serial spacing
   const prev = _rateLimitChain;
   let resolve: () => void;
@@ -128,8 +135,8 @@ async function rateLimit(mode: 'prod' | 'dev') {
   await prev;
   const now = Date.now();
   const elapsed = now - _lastApiCallAt;
-  if (elapsed < MIN_API_INTERVAL_MS) {
-    await new Promise((r) => setTimeout(r, MIN_API_INTERVAL_MS - elapsed));
+  if (elapsed < minIntervalMs) {
+    await new Promise((r) => setTimeout(r, minIntervalMs - elapsed));
   }
   _lastApiCallAt = Date.now();
   resolve!();
@@ -154,20 +161,20 @@ export async function summarize(
   fullText: string,
   title: string
 ): Promise<{ headline: string; summary: string; signals: SummarySignals }> {
-  const { client, model, mode } = createClient();
+  const { client, model, prompt: promptVersion, minIntervalMs, maxInputChars } = createClient();
 
-  logger.debug(`Summarizing with ${mode === 'prod' ? 'GPT-4.1 Mini (V1.3)' : 'Ollama 8B (V1)'}`);
+  logger.debug(`Summarizing with ${model} (${promptVersion})`);
 
   // Truncate to keep inference fast and within token limits
-  const maxChars = mode === 'prod' ? 8000 : 6000;
+  const maxChars = maxInputChars;
   const truncatedText =
     fullText.length > maxChars
       ? fullText.slice(0, maxChars) + '\n\n[Content truncated]'
       : fullText;
 
-  // Select prompt based on mode
-  const systemPrompt = mode === 'prod' ? SYSTEM_PROMPT_V13 : SYSTEM_PROMPT_V1;
-  const buildUserPrompt = mode === 'prod' ? buildUserPromptV13 : buildUserPromptV1;
+  // Which PROMPT.md variant to use — configured, not inferred from the environment.
+  const systemPrompt = promptVersion === 'v1.3' ? SYSTEM_PROMPT_V13 : SYSTEM_PROMPT_V1;
+  const buildUserPrompt = promptVersion === 'v1.3' ? buildUserPromptV13 : buildUserPromptV1;
 
   let summary = '';
   let lastWordCount = 0;
@@ -191,7 +198,7 @@ export async function summarize(
       }
     }
 
-    await rateLimit(mode);
+    await rateLimit(minIntervalMs);
 
     const response = await client.chat.completions.create({
       model,
@@ -267,7 +274,7 @@ export async function summarize(
   }
 
   // Generate headline
-  await rateLimit(mode);
+  await rateLimit(minIntervalMs);
 
   const headlineResponse = await client.chat.completions.create({
     model,
