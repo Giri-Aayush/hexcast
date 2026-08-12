@@ -147,6 +147,12 @@ export function loadConfig() {
     // source, so even a 40-60 word card is a real compression rather than a restatement
     // padded out. Lowering this buys more cards and pays for them in invented detail.
     minSourceChars: parseInt(process.env.MIN_SOURCE_CHARS ?? '600', 10),
+    // How old an item may be and still become a card. This is a news feed: 514 of the
+    // 2,104 items banked by the cold fetch are over a year old, and getCards() has no age
+    // filter, so without this an anonymous visitor sees year-old forum posts as news.
+    // 90 rather than 30 days because a six-week-old EIP discussion is still interesting
+    // to this audience, just not breaking.
+    maxSourceAgeDays: parseInt(process.env.MAX_SOURCE_AGE_DAYS ?? '90', 10),
     // Extra JSON merged into every completions request, for params only one provider
     // understands — OpenRouter's reasoning:{exclude:true} being the case in hand, since
     // reasoning tokens bill as output and a 60-word factual summary needs none of it.

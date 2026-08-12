@@ -109,10 +109,14 @@ const defaultSignals = {
   truncated: false,
   entitiesPreserved: true,
   missingEntities: [] as string[],
+  inventedEntities: [] as string[],
+  entityPreservationRate: 1,
+  totalEntities: 4,
 };
 
 const defaultConfig = {
   minSourceChars: 0, // most tests are not about the gate
+  maxSourceAgeDays: 36_500, // ...nor about recency
   batchSize: 100,
   concurrency: 1,
   dryRun: false,
@@ -197,6 +201,64 @@ describe('roundRobinBySource', () => {
     expect(roundRobinBySource([])).toEqual([]);
     const single = [makeItemFrom('a', 'a1')];
     expect(roundRobinBySource(single)).toBe(single);
+  });
+});
+
+describe('news ordering and recency', () => {
+  it('summarizes the newest items first', async () => {
+    // The product leads with current news, so a cold backfill must not spend its first
+    // batch on the oldest end of a 2,000-item queue.
+    mocks.mockLoadConfig.mockReturnValue({ ...defaultConfig, batchSize: 2 });
+    const old = { ...makeItem('old'), published_at: '2017-08-17T00:00:00Z' };
+    const mid = { ...makeItem('mid'), published_at: '2026-06-01T00:00:00Z' };
+    const fresh = { ...makeItem('fresh'), published_at: '2026-08-12T00:00:00Z' };
+    // Deliberately handed over oldest-first, the order getUnprocessedItems returns.
+    mocks.mockGetUnprocessedItems.mockResolvedValue([old, mid, fresh]);
+    mocks.mockNormalize.mockImplementation((item: { id: string }) => makeNormalized(item.id));
+
+    await processRawItems({ drainOrder: 'oldest-first' });
+
+    expect(mocks.mockNormalize.mock.calls.map((c) => c[0].id)).toEqual(['fresh', 'mid']);
+  });
+
+  it('keeps source variety while still preferring the newest', async () => {
+    // Both properties at once: newest-first WITHIN a source, round-robin ACROSS sources.
+    mocks.mockLoadConfig.mockReturnValue({ ...defaultConfig, batchSize: 2 });
+    mocks.mockGetUnprocessedItems.mockResolvedValue([
+      { ...makeItemFrom('forum', 'forum-old'), published_at: '2026-01-01T00:00:00Z' },
+      { ...makeItemFrom('forum', 'forum-new'), published_at: '2026-08-12T00:00:00Z' },
+      { ...makeItemFrom('blog', 'blog-mid'), published_at: '2026-07-01T00:00:00Z' },
+    ]);
+    mocks.mockNormalize.mockImplementation((item: { id: string }) => makeNormalized(item.id));
+
+    await processRawItems({ drainOrder: 'round-robin' });
+
+    expect(mocks.mockNormalize.mock.calls.map((c) => c[0].id)).toEqual(['forum-new', 'blog-mid']);
+  });
+
+  it('skips an item too old to be news', async () => {
+    mocks.mockLoadConfig.mockReturnValue({ ...defaultConfig, maxSourceAgeDays: 90 });
+    mocks.mockGetUnprocessedItems.mockResolvedValue([makeItem('ancient')]);
+    mocks.mockNormalize.mockReturnValue({
+      ...makeNormalized('ancient'),
+      publishedAt: new Date('2017-08-17T00:00:00Z'),
+    });
+
+    const result = await processRawItems();
+
+    expect(result).toEqual({ processed: 0, skipped: 1, failed: 0 });
+    expect(mocks.mockSummarize).not.toHaveBeenCalled();
+    expect(mocks.mockMarkAsProcessed).toHaveBeenCalledWith('ancient');
+  });
+
+  it('keeps an item inside the window', async () => {
+    mocks.mockLoadConfig.mockReturnValue({ ...defaultConfig, maxSourceAgeDays: 90 });
+    mocks.mockGetUnprocessedItems.mockResolvedValue([makeItem('recent')]);
+    mocks.mockNormalize.mockReturnValue({ ...makeNormalized('recent'), publishedAt: new Date() });
+
+    const result = await processRawItems();
+
+    expect(result).toEqual({ processed: 1, skipped: 0, failed: 0 });
   });
 });
 
