@@ -125,7 +125,7 @@ export default async function CardPage({ params }: Props) {
           {extractDomain(card.canonical_url).toUpperCase()} · {relativeTime(card.published_at).toUpperCase()}
         </div>
         <div className="hx-perma-cta">
-          <Link href="/feed" className="hx-btn-ink" style={{ flex: 1, justifyContent: 'center' }}>
+          <Link href={`/feed?card=${card.id}`} className="hx-btn-ink" style={{ flex: 1, justifyContent: 'center' }}>
             Open the full feed
           </Link>
           <a href={card.canonical_url} target="_blank" rel="noopener noreferrer" className="hx-btn-quiet">
