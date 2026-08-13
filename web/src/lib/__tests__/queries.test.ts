@@ -268,9 +268,11 @@ describe('getPersonalizedCards', () => {
 
     await getPersonalizedCards({ userId: 'user_abc' });
 
+    // p_limit is the overfetched candidate pool (limit * CANDIDATE_MULTIPLIER),
+    // not the raw page size — see affinity.test.ts for the multiplier itself.
     expect(mockSupabase.rpc).toHaveBeenCalledWith('get_personalized_feed', {
       p_user_id: 'user_abc',
-      p_limit: 20,
+      p_limit: 60,
       p_category: null,
       p_cursor_seen: null,
       p_cursor_published: null,
@@ -321,9 +323,10 @@ describe('getPersonalizedCards', () => {
       cursorPublished: '2024-06-01T00:00:00Z',
     });
 
+    // 50 * CANDIDATE_MULTIPLIER (3) = 150, right at MAX_CANDIDATE_POOL — not clamped.
     expect(mockSupabase.rpc).toHaveBeenCalledWith('get_personalized_feed', {
       p_user_id: 'user_xyz',
-      p_limit: 50,
+      p_limit: 150,
       p_category: 'GOVERNANCE',
       p_cursor_seen: true,
       p_cursor_published: '2024-06-01T00:00:00Z',
