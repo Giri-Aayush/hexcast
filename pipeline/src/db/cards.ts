@@ -19,12 +19,23 @@ export interface CreateCardParams {
   /** Components behind qualityScore, so a number can be explained after the fact. */
   quality?: QualityBreakdown;
   signals?: SummarySignals;
+  /**
+   * Supplied by the caller so the pool image can be resolved from it and written in the SAME
+   * insert. The column has a gen_random_uuid() default, but letting the database pick means
+   * the id only exists after the write — which would force a second UPDATE and leave a window
+   * where the card is live and imageless.
+   */
+  id?: string;
+  /** Resolved from the category pool at creation. Null when that pool has no images yet. */
+  imageUrl?: string | null;
   /** The card's stat row, or null when the summary had too few figures to fill one. */
   stats?: Stat[] | null;
 }
 
 export async function createCard(params: CreateCardParams): Promise<string> {
   const { data, error } = await supabase.from('cards').insert({
+    ...(params.id ? { id: params.id } : {}),
+    image_url: params.imageUrl ?? null,
     source_id: params.sourceId,
     canonical_url: params.canonicalUrl,
     url_hash: params.urlHash,
