@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import type { Card, SourceRegistry } from '@hexcast/shared';
+import { computeAffinity, rankByAffinity, CANDIDATE_MULTIPLIER, MAX_CANDIDATE_POOL } from './affinity';
 
 export interface CardQueryParams {
   cursor?: string;
@@ -95,9 +96,14 @@ export async function getPersonalizedCards(
 ): Promise<PersonalizedResult> {
   const { userId, limit = 20, category, cursorSeen, cursorPublished } = params;
 
+  // Overfetch unseen-first candidates so there's room to re-rank by affinity
+  // (see rankByAffinity) without ever needing to reach past `limit` into older
+  // cards to fill the page. Capped so a large page size can't blow this up.
+  const candidateLimit = Math.min(limit * CANDIDATE_MULTIPLIER, MAX_CANDIDATE_POOL);
+
   const { data, error } = await supabase.rpc('get_personalized_feed', {
     p_user_id: userId,
-    p_limit: limit,
+    p_limit: candidateLimit,
     p_category: category ?? null,
     p_cursor_seen: cursorSeen ?? null,
     p_cursor_published: cursorPublished ?? null,
@@ -112,17 +118,32 @@ export async function getPersonalizedCards(
   const unseen = raw.filter((c) => !c.seen);
   const seen = raw.filter((c) => c.seen);
 
-  const interleavedUnseen = interleaveBySource(unseen) as PersonalizedCard[];
+  // Affinity only re-ranks the unseen zone. It's a nudge within a recency
+  // bucket (rankByAffinity), never a reason to bring seen cards forward or to
+  // change the seen-zone's own handling below. Skipped entirely when there's
+  // nothing unseen to rank, and degrades to a no-op on any fetch error.
+  const affinity = unseen.length > 0 ? await computeAffinity(userId) : { category: new Map(), source: new Map() };
+  const rankedUnseen = rankByAffinity(unseen, affinity);
+
+  const interleavedUnseen = interleaveBySource(rankedUnseen) as PersonalizedCard[];
   const interleavedSeen = interleaveBySource(seen) as PersonalizedCard[];
 
   // Re-attach seen flag (interleaveBySource doesn't strip it, but be explicit)
   const seenIds = new Set(seen.map((c) => c.id));
-  const cards = [...interleavedUnseen, ...interleavedSeen];
+  // Trim the overfetched candidate pool back down to the page size the caller
+  // asked for — unseen fills the page first, seen pads whatever's left, same
+  // zoning as before this just has more unseen candidates to draw from.
+  const cards = [...interleavedUnseen, ...interleavedSeen].slice(0, limit);
   for (const card of cards) {
     card.seen = seenIds.has(card.id);
   }
 
-  return { cards, unseenCount: unseen.length };
+  // Count against the trimmed page, not the overfetched pool — this is what
+  // the client accumulates into a running "new cards" total across pages, so
+  // it must reflect what was actually delivered, not what was fetched.
+  const unseenCount = cards.filter((c) => !c.seen).length;
+
+  return { cards, unseenCount };
 }
 
 export async function getCardById(id: string): Promise<Card | null> {
