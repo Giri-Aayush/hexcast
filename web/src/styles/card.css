@@ -48,6 +48,11 @@
   width: 100%;
   object-fit: cover;
   display: block;
+  /* Dissolve the top and bottom edges into the card instead of a hard line where the
+     image meets the summary above and the meta below. Fixed px (not %) so the fade is
+     the same softness whatever height the image ends up. */
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 24px, #000 calc(100% - 20px), transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 24px, #000 calc(100% - 20px), transparent 100%);
 }
 
 /* 02 · BADGE PILL 26PX, OVERLAPS THE FIELD
