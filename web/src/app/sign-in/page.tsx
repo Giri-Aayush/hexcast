@@ -1,4 +1,9 @@
+import type { Metadata } from 'next';
 import { SignInForm } from './sign-in-form';
+
+// Own title instead of inheriting the homepage's. Sign-in isn't indexed (robots
+// disallows it), but the tab/title still shouldn't read as the marketing homepage.
+export const metadata: Metadata = { title: 'Sign in · Hexcast' };
 
 // Read the Google config at request time, not build time. force-dynamic keeps this a
 // server render so the button flips on the next request after the env is set, with no

@@ -1,4 +1,24 @@
 import * as Sentry from '@sentry/nextjs';
+import posthog from 'posthog-js';
+
+/**
+ * PostHog client init. Without this, every capture()/identify() across the app is a
+ * silent no-op — the SDK was imported and called in ~18 places but never started, so
+ * analytics was dead regardless of the key being set.
+ *
+ * api_host must be us.i.posthog.com to match the CSP (see next.config.ts). Profiles
+ * are created only for users we identify() (signed-in), and history_change gives SPA
+ * pageviews across App Router navigations without a manual router listener.
+ */
+const posthogKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
+if (posthogKey) {
+  posthog.init(posthogKey, {
+    api_host: 'https://us.i.posthog.com',
+    person_profiles: 'identified_only',
+    capture_pageview: 'history_change',
+    capture_pageleave: true,
+  });
+}
 
 /**
  * Browser error reporting.

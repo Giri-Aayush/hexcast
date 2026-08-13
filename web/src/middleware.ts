@@ -33,7 +33,11 @@ async function rateLimit(request: NextRequest) {
 // `/card/*` (shareable permalinks — the whole point of the share button), and the
 // auth/stats APIs. So "nobody sees the feed without signing up" holds, but a shared
 // card link and the marketing page still work for a logged-out visitor.
-const GATED_PREFIXES = ['/feed', '/saved', '/sources', '/about', '/admin'];
+// /about stays public: it's the "how it works / accuracy policy" page linked from the
+// landing footer, and it renders a signed-out state, so gating it would bounce a
+// logged-out visitor off a public policy link. /sources is app-only (reached from the
+// signed-in nav; the landing has its own #sources section), so it stays gated.
+const GATED_PREFIXES = ['/feed', '/saved', '/sources', '/admin'];
 
 function needsAuth(pathname: string): boolean {
   return GATED_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + '/'));
