@@ -39,7 +39,7 @@ const nextConfig: NextConfig = withPWA({
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com https://us.i.posthog.com",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com https://us.i.posthog.com https://us-assets.i.posthog.com",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
               // Card cover art is stored in Supabase Storage and rendered as a plain <img> from
@@ -49,7 +49,7 @@ const nextConfig: NextConfig = withPWA({
               // the pipeline produced nothing. *.supabase.co is already trusted in connect-src
               // on this same policy, so this grants no new origin.
               "img-src 'self' data: blob: https://*.supabase.co",
-              "connect-src 'self' https://*.supabase.co https://us.i.posthog.com https://us.posthog.com https://*.sentry.io",
+              "connect-src 'self' https://*.supabase.co https://us.i.posthog.com https://us-assets.i.posthog.com https://us.posthog.com https://*.sentry.io",
               "frame-src https://challenges.cloudflare.com",
               "worker-src 'self' blob:",
               "manifest-src 'self'",

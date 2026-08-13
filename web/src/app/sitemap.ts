@@ -4,12 +4,13 @@ import { supabase } from '@/lib/supabase';
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = 'https://hexcast.xyz';
 
-  // Static pages. `/` is now the landing page (static marketing), and the feed moved
-  // to `/feed` — so `/feed` is the hourly-changing surface, not the root.
+  // Only publicly reachable pages belong here. `/feed` and `/sources` are gated (the
+  // middleware redirects a crawler with no session to /sign-in), so listing them just
+  // feeds Search Console "page with redirect" errors. `/` (landing) and `/about` (the
+  // how-it-works / accuracy page) are public; card permalinks are public and added
+  // below.
   const staticPages: MetadataRoute.Sitemap = [
     { url: baseUrl, lastModified: new Date(), changeFrequency: 'weekly', priority: 1.0 },
-    { url: `${baseUrl}/feed`, lastModified: new Date(), changeFrequency: 'hourly', priority: 0.9 },
-    { url: `${baseUrl}/sources`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.7 },
     { url: `${baseUrl}/about`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.5 },
   ];
 
