@@ -141,7 +141,7 @@ A concurrent-safe rate limiter (promise chain) spaces API calls ≥150ms apart t
 
 ### 4 · Personalized Feed
 
-Authenticated users (via Clerk) receive unseen-first ordering. The feed tracks what you have read and always surfaces what you have not. Category filters apply globally. Source toggles let you hide any of the 88 sources from your view permanently.
+Authenticated users (via Better Auth) receive unseen-first ordering. The feed tracks what you have read and always surfaces what you have not. Category filters apply globally. Source toggles let you hide any of the 88 sources from your view permanently.
 
 ---
 
@@ -174,7 +174,7 @@ Authenticated users (via Clerk) receive unseen-first ordering. The feed tracks w
 
 ## Security
 
-- **CSP headers** — Content-Security-Policy restricts script, style, connect, and frame sources to known domains (Clerk, PostHog, Supabase, Google Fonts)
+- **CSP headers** — Content-Security-Policy restricts script, style, connect, and frame sources to known domains (Cloudflare Turnstile, PostHog, Supabase, Sentry, Google Fonts)
 - **HSTS** — `max-age=63072000; includeSubDomains; preload`
 - **Input validation** — UUID format validation on all ID parameters, string length caps, array size limits, SQL wildcard escaping on search queries
 - **Error sanitization** — API routes never expose raw database error messages to clients
