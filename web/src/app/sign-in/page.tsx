@@ -32,7 +32,7 @@ export default function SignInPage() {
     setBusy(false);
     if (res.error) {
       // Better Auth's messages are already human ("Invalid email or password").
-      setError(res.error.message ?? 'Something went wrong — try again.');
+      setError(res.error.message ?? 'Something went wrong. Try again.');
       return;
     }
     router.push('/');

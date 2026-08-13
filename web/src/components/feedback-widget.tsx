@@ -46,10 +46,10 @@ export function FeedbackWidget() {
         setMessage('');
         setOpen(false);
       } else {
-        toast('Failed to send — try again');
+        toast('Failed to send. Try again.');
       }
     } catch {
-      toast('Failed to send — try again');
+      toast('Failed to send. Try again.');
     } finally {
       setSubmitting(false);
     }
