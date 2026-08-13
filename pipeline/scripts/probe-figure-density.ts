@@ -15,6 +15,13 @@
  *   npx tsx scripts/probe-figure-density.ts [limit]
  *
  * Reads only. Nothing is written.
+ *
+ * CAVEAT, AND IT HAS ALREADY MISLED ONCE: this measures cards ALREADY IN THE DATABASE, so
+ * the answer describes whichever model wrote them — not necessarily the one configured
+ * now. A local database is written by Ollama, because PIPELINE_ENV=dev defaults to it, and
+ * reading a 60% eligibility rate off that and reporting it as the product's was how the
+ * stat row got designed against the wrong model. To measure the CONFIGURED provider, use
+ * probe-figures-by-model.ts, which summarizes fresh and is comparable across models.
  */
 import { createClient } from '@supabase/supabase-js';
 import { loadConfig } from '../src/config.js';

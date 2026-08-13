@@ -4,8 +4,8 @@
  * Used for two things that must agree: deciding whether a card is worth spending a stat
  * extraction call on, and measuring across the corpus how often that is true
  * (scripts/probe-figure-density.ts). If the gate and the measurement used different
- * definitions, the measured "60% of cards are eligible" would describe a population the
- * pipeline never actually selects.
+ * definitions, the measured eligibility rate would describe a population the pipeline
+ * never actually selects.
  *
  * Deliberately wider than entity-checker's ENTITY_PATTERNS, which knows only
  * EIP-N / ERC-N / N% / $N / vN.N. A stat row reads "1.21M ACCOUNTS" and "2 CLIENT
@@ -70,9 +70,19 @@ export function extractFigures(text: string): Figure[] {
 /**
  * Enough figures to be worth an extraction call?
  *
- * A one-stat row is not a row, so two is the floor. Measured across 300 cards, this is
- * true of about 60% of them — meaning the check skips roughly four calls in ten, which is
- * the entire cost argument for making it before calling rather than after.
+ * A one-stat row is not a row, so two is the floor.
+ *
+ * HOW OFTEN THIS PASSES DEPENDS ON THE MODEL AND PROMPT, and quoting a single number here
+ * would be wrong. The first measurement said 60% and described llama3.1:8b, because
+ * PIPELINE_ENV=dev silently defaults to Ollama and the local database had been written by
+ * it — while production runs DeepSeek, which front-loads far more figures. Re-measuring on
+ * the production model moved it well above 60%, and changing the prompt moved it again.
+ *
+ * So the useful statement is the shape, not the figure: a meaningful minority of summaries
+ * carry too few figures to fill a row, the call is skipped for them, and that skip is the
+ * whole cost argument for checking before calling rather than after. Run
+ * scripts/probe-figures-by-model.ts against whatever provider is configured to get the
+ * number for that configuration.
  */
 export function hasEnoughFigures(summary: string, minimum = 2): boolean {
   return extractFigures(summary).length >= minimum;
