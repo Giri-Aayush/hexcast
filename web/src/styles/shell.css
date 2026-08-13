@@ -188,15 +188,6 @@
   padding: 0 4px;
 }
 
-/* Clerk's keyless dev panel plants itself over the bottom of the viewport, exactly
-   where the action bar and nav live. Dev-only, but it makes the app impossible to
-   evaluate or screenshot. */
-.cl-keylessPrompt,
-[class*='cl-keylessPrompt'],
-[data-clerk-keyless] {
-  display: none !important;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .hx-nav a {
     transition: none;
