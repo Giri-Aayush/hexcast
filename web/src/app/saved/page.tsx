@@ -31,7 +31,7 @@ function SavedCards() {
         <div className="hx-empty-rule" aria-hidden="true" />
         <h2>Nothing saved yet</h2>
         <p>Tap the bookmark on any card and it lands here.</p>
-        <Link href="/" className="hx-btn-ink">
+        <Link href="/feed" className="hx-btn-ink">
           Back to feed
         </Link>
       </div>

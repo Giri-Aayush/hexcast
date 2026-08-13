@@ -4,7 +4,7 @@
   "description": "Ethereum ecosystem intelligence in 60-word cards.",
   "id": "/",
   "scope": "/",
-  "start_url": "/?utm_source=pwa",
+  "start_url": "/feed?utm_source=pwa",
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#030712",

@@ -35,7 +35,7 @@ export default function SignInPage() {
       setError(res.error.message ?? 'Something went wrong. Try again.');
       return;
     }
-    router.push('/');
+    router.push('/feed');
     router.refresh();
   }
 

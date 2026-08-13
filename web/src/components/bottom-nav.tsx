@@ -13,7 +13,7 @@ import { usePathname } from 'next/navigation';
  * not a 404.
  */
 const NAV_ITEMS = [
-  { href: '/', label: 'Feed' },
+  { href: '/feed', label: 'Feed' },
   { href: '/saved', label: 'Saved' },
   { href: '/sources', label: 'Sources' },
   { href: '/about', label: 'You' },
