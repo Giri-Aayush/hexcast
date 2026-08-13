@@ -1,6 +1,8 @@
+import { randomUUID } from 'node:crypto';
 import type { RawItem } from '@hexcast/shared';
 import { getUnprocessedItems, markAsProcessed } from '../db/raw-items.js';
 import { createCard } from '../db/cards.js';
+import { poolImageUrlFor } from '../db/card-images.js';
 import { normalize } from './normalizer.js';
 import { isDuplicate } from './deduplicator.js';
 import { classify } from './classifier.js';
@@ -269,7 +271,20 @@ export async function processRawItems(
       }
 
       // 8. Create card
+      // Cover art is assigned AT CREATION, from the category pool, so every card is imaged
+      // the moment it exists. The id is generated here rather than by the database so the
+      // pool index can be derived from it and written in the same insert — otherwise the
+      // card is live and bare until a second write, and "every card has an image" becomes
+      // something a backfill has to keep re-establishing rather than something that is true.
+      //
+      // Costs nothing: it indexes into images already generated. Null when the category has
+      // no pool yet, which renders the dither.
+      const newCardId = randomUUID();
+      const imageUrl = await poolImageUrlFor(category, newCardId);
+
       const cardId = await createCard({
+        id: newCardId,
+        imageUrl,
         sourceId: normalized.sourceId,
         canonicalUrl: normalized.canonicalUrl,
         urlHash: hashUrl(normalized.canonicalUrl),

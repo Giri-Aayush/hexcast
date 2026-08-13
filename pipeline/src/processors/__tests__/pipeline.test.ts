@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => {
     mockHashUrl: vi.fn(),
     mockLoadConfig: vi.fn(),
     mockGenerateImageFor: vi.fn(),
+    mockPoolImageUrlFor: vi.fn(),
     mockLogger: { info: vi.fn(), debug: vi.fn(), warn: vi.fn(), error: vi.fn() },
     mockSupabase: { from: vi.fn() },
   };
@@ -57,6 +58,10 @@ vi.mock('../../utils/hash.js', () => ({
 
 vi.mock('../card-image-step.js', () => ({
   generateImageFor: mocks.mockGenerateImageFor,
+}));
+
+vi.mock('../../db/card-images.js', () => ({
+  poolImageUrlFor: mocks.mockPoolImageUrlFor,
 }));
 
 vi.mock('../../config.js', () => ({
@@ -182,6 +187,7 @@ beforeEach(() => {
   mocks.mockHashUrl.mockReturnValue('abc123hash');
   mocks.mockCreateCard.mockResolvedValue('card-uuid-1');
   mocks.mockGenerateImageFor.mockResolvedValue(undefined);
+  mocks.mockPoolImageUrlFor.mockResolvedValue('https://cdn.test/pool/UPGRADE/3.png');
 });
 
 // ── Tests ────────────────────────────────────────────────────────────────
@@ -537,6 +543,10 @@ describe('processRawItems', () => {
       signals: defaultSignals,
     });
     expect(mocks.mockCreateCard).toHaveBeenCalledWith({
+      // Generated here rather than by the database, so the pool image can be derived from it
+      // and written in the same insert.
+      id: expect.stringMatching(/^[0-9a-f-]{36}$/),
+      imageUrl: 'https://cdn.test/pool/UPGRADE/3.png',
       sourceId: normalized.sourceId,
       canonicalUrl: normalized.canonicalUrl,
       urlHash: 'abc123hash',
@@ -622,6 +632,37 @@ describe('processRawItems', () => {
       'SECURITY',
       'Test summary text.',
     );
+  });
+
+  it('assigns a pool image at creation, in the same insert as the card', async () => {
+    // The gap this closes: assignment used to live only in a backfill script, so "every card
+    // has an image" was true of the 33 cards present when it ran and false of every card
+    // written afterwards. A property that a script has to keep re-establishing is not a
+    // property.
+    mocks.mockGetUnprocessedItems.mockResolvedValue([makeItem('item-1')]);
+    mocks.mockNormalize.mockReturnValue(makeNormalized('item-1'));
+
+    await processRawItems();
+
+    const params = mocks.mockCreateCard.mock.calls[0][0];
+    expect(params.imageUrl).toBe('https://cdn.test/pool/UPGRADE/3.png');
+    // The id is generated here, not by the database, so the pool index can be derived from
+    // it before the insert instead of needing a second write.
+    expect(params.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+    expect(mocks.mockPoolImageUrlFor).toHaveBeenCalledWith('ANNOUNCEMENT', params.id);
+  });
+
+  it('still writes the card when its category has no pool image', async () => {
+    // Null is a normal state — a category whose pool has not been generated renders the
+    // dither. It must not cost the card.
+    mocks.mockPoolImageUrlFor.mockResolvedValue(null);
+    mocks.mockGetUnprocessedItems.mockResolvedValue([makeItem('item-1')]);
+    mocks.mockNormalize.mockReturnValue(makeNormalized('item-1'));
+
+    const result = await processRawItems();
+
+    expect(result).toEqual({ processed: 1, skipped: 0, failed: 0 });
+    expect(mocks.mockCreateCard.mock.calls[0][0].imageUrl).toBeNull();
   });
 
   it('queues SECURITY category cards to high_priority_queue', async () => {
