@@ -57,7 +57,7 @@ export default function AdminPage() {
     setError(null);
     const res = await fetch('/api/admin/flags');
     if (!res.ok) {
-      setError(res.status === 403 ? 'Access denied — you are not an admin.' : 'Failed to load flags');
+      setError(res.status === 403 ? 'Access denied. You are not an admin.' : 'Failed to load flags');
       setLoading(false);
       return;
     }
@@ -74,7 +74,7 @@ export default function AdminPage() {
     if (showSuspended) params.set('suspended', 'true');
     const res = await fetch(`/api/admin/cards?${params}`);
     if (!res.ok) {
-      setError(res.status === 403 ? 'Access denied — you are not an admin.' : 'Failed to load cards');
+      setError(res.status === 403 ? 'Access denied. You are not an admin.' : 'Failed to load cards');
       setLoading(false);
       return;
     }
@@ -285,7 +285,7 @@ export default function AdminPage() {
                         <span className="text-[10px] tracking-wider uppercase" style={{ color: 'var(--ink)' }}>{card.category}</span>
                         <span className="text-[10px]" style={{ color: 'var(--ink-dim)' }}>{card.source_id}</span>
                         <span className="text-[10px]" style={{ color: 'var(--ink-dim)' }}>
-                          Q: {card.quality_score?.toFixed(2) ?? '—'}
+                          Q: {card.quality_score?.toFixed(2) ?? '·'}
                         </span>
                         {card.flag_count > 0 && (
                           <span className="text-[10px]" style={{ color: '#cc2200' }}>

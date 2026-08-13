@@ -4,10 +4,10 @@ import { YouPanel } from '@/components/you-panel';
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-  title: 'You — Hexcast',
+  title: 'You · Hexcast',
   description: 'Your Hexcast account, plus how Hexcast works: 88 curated Ethereum sources, AI-written summaries, 8 categories of signal. Open source, no paywall.',
   openGraph: {
-    title: 'You — Hexcast',
+    title: 'You · Hexcast',
     description: 'How Hexcast works: 88 curated Ethereum sources, AI-written summaries, 8 categories of signal.',
   },
 };
@@ -37,7 +37,7 @@ export default function YouPage() {
             <Section title="WHAT IS HEXCAST">
               Hexcast aggregates, curates, and summarises information from across the
               Ethereum ecosystem and delivers it as a feed of short story cards. Each
-              card captures one event, proposal, decision, or development — enough
+              card captures one event, proposal, decision, or development, with enough
               context to understand what happened and why it matters.
             </Section>
 
@@ -56,7 +56,7 @@ export default function YouPage() {
             </Section>
 
             <Section title="REPORT AN ISSUE">
-              See an inaccurate card? Flag it from the card itself — flagged cards are
+              See an inaccurate card? Flag it from the card itself. Flagged cards are
               reviewed, and enough independent flags take a card out of the feed. For
               bugs or feature requests, open an issue on GitHub.
             </Section>

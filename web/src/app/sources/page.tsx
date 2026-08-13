@@ -3,10 +3,10 @@ import { getSources } from '@/lib/queries';
 import { SourceList } from '@/components/source-list';
 
 export const metadata: Metadata = {
-  title: 'Sources — Hexcast',
+  title: 'Sources · Hexcast',
   description: 'All 88 Ethereum sources Hexcast monitors: protocol forums, client repos, governance portals, security researchers, L2 blogs, and on-chain metrics.',
   openGraph: {
-    title: 'Sources — Hexcast',
+    title: 'Sources · Hexcast',
     description: 'All 88 Ethereum sources Hexcast monitors across 17 tiers.',
   },
 };

@@ -9,7 +9,7 @@ import { SpotlightTour } from '@/components/spotlight-tour';
 
 export const metadata: Metadata = {
   title: 'Hexcast',
-  description: 'Ethereum ecosystem intelligence in 60-word cards. Protocol updates, governance votes, security incidents, and client releases from 88 curated sources.',
+  description: 'Ethereum ecosystem intelligence in short, self-contained cards. Protocol updates, governance votes, security incidents, and client releases from 88 curated sources.',
   manifest: '/manifest.json',
   metadataBase: new URL('https://hexcast.xyz'),
   icons: {
@@ -24,7 +24,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: 'Hexcast',
-    description: 'Ethereum ecosystem intelligence — 60 words at a time.',
+    description: 'Ethereum ecosystem intelligence, one card at a time.',
     url: 'https://hexcast.xyz',
     siteName: 'Hexcast',
     type: 'website',
@@ -32,7 +32,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'Hexcast',
-    description: 'Ethereum ecosystem intelligence — 60 words at a time.',
+    description: 'Ethereum ecosystem intelligence, one card at a time.',
   },
   appleWebApp: {
     capable: true,
@@ -69,7 +69,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     '@id': 'https://hexcast.xyz/#website',
                     url: 'https://hexcast.xyz',
                     name: 'Hexcast',
-                    description: 'Ethereum ecosystem intelligence — 60 words at a time.',
+                    description: 'Ethereum ecosystem intelligence, one card at a time.',
                     publisher: { '@id': 'https://hexcast.xyz/#organization' },
                   },
                   {
