@@ -291,68 +291,27 @@ a.hxl-btn-pill {
 
 /* Email signup */
 
-.hxl-signup {
-  width: 100%;
-  max-width: 456px;
-  flex: none;
-}
-
-.hxl-signup-row {
-  display: flex;
+/* Hero CTA: one button straight into sign-up. Replaced the email box, which only
+   ever funneled here anyway — with Google one-tap on the sign-in screen, an email
+   field on the hero was friction with nothing behind it. */
+a.hxl-hero-cta {
+  display: inline-flex;
   align-items: center;
-  height: clamp(42px, 8vh, 56px);
-  border-radius: 14px;
-  border: 1px solid rgba(16, 16, 20, 0.14);
-  background: #fff;
-  padding: 5px 5px 5px 20px;
-  transition: border-color 0.15s ease;
-}
-
-.hxl-signup-row:focus-within {
-  border-color: rgba(16, 16, 20, 0.4);
-}
-
-.hxl-signup-input {
-  flex: 1;
-  border: none;
-  outline: none;
-  background: transparent;
-  font: 400 15px/1 var(--font-sans);
-  color: var(--ink);
-  min-width: 0;
-}
-
-.hxl-signup-input::placeholder {
-  color: var(--ink-dim);
-}
-
-.hxl-signup-submit {
-  flex: none;
-  height: 46px;
-  padding: 0 20px;
-  border-radius: 10px;
+  justify-content: center;
+  height: clamp(48px, 8vh, 56px);
+  padding: 0 34px;
+  border-radius: 12px;
   background: var(--ink);
   color: var(--surface);
-  font: 500 13.5px/1 var(--font-sans);
+  font: 500 15px/1 var(--font-sans);
   border: none;
   cursor: pointer;
-  white-space: nowrap;
+  text-decoration: none;
+  transition: opacity 0.12s ease;
 }
 
-.hxl-signup-note {
-  height: 16px;
-  margin-top: 12px;
-  font: 400 10.5px/1 var(--font-mono);
-  letter-spacing: 0.1em;
-  text-align: center;
-}
-
-.hxl-signup-note-error {
-  color: #a3342c;
-}
-
-.hxl-signup-note-success {
-  color: #2c7a5c;
+a.hxl-hero-cta:hover {
+  opacity: 0.9;
 }
 
 /* ── Fanned card deck ───────────────────────────────────────────────── */
