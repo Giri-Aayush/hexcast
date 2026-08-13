@@ -377,7 +377,7 @@ export function CardFeed({ initialCards, personalized, initialUnseenCount }: Car
                     className="text-[10px] tracking-wider uppercase"
                     style={{ color: 'var(--ink-dim)' }}
                   >
-                    you&apos;ve seen everything above — older cards below
+                    you&apos;ve seen everything above. Older cards below
                   </div>
                   <div className="flex items-center gap-3 mt-4 justify-center">
                     <div className="caught-up-line w-16" />

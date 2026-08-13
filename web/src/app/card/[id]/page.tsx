@@ -13,7 +13,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const card = await getCardById(id);
 
   if (!card) {
-    return { title: 'Card not found — Hexcast' };
+    return { title: 'Card not found · Hexcast' };
   }
 
   const categoryLabel = CATEGORY_LABELS[card.category] ?? card.category;
@@ -21,7 +21,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const ogImageUrl = `/og?id=${id}`;
 
   return {
-    title: `${card.headline} — Hexcast`,
+    title: `${card.headline} · Hexcast`,
     description,
     openGraph: {
       title: card.headline,

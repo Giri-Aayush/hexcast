@@ -144,7 +144,7 @@ export const Card = memo(function Card({ card, position }: CardProps) {
       setFlagStep('done');
       capture('card_flagged', { card_id: card.id, reason: flagReason });
     } catch {
-      toast('Failed to flag — try again');
+      toast('Failed to flag. Try again.');
       setFlagStep('idle');
     }
   }
@@ -178,7 +178,7 @@ export const Card = memo(function Card({ card, position }: CardProps) {
       capture(nowSaved ? 'card_saved' : 'card_unsaved', { card_id: card.id });
       toast(nowSaved ? 'Saved' : 'Removed from saved');
     } catch {
-      toast('Failed to save — try again');
+      toast('Failed to save. Try again.');
     }
   }
 
@@ -357,7 +357,7 @@ export const Card = memo(function Card({ card, position }: CardProps) {
             </>
           )}
 
-          {flagStep === 'done' && <span className="hx-flag-title">Thanks — logged.</span>}
+          {flagStep === 'done' && <span className="hx-flag-title">Thanks, logged.</span>}
         </div>
       )}
     </article>
