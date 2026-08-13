@@ -3,14 +3,21 @@
 -- The three-figure row on a card: "1.21M / ACCOUNTS", "71% / TO 4 CONTRACTS",
 -- "2 / CLIENT PATCHES". Shape is Array<{value, label}> | null, at most 3 entries.
 --
--- JSONB rather than three pairs of columns, because the row is variable-length: measured
--- across 300 real cards, 60% carry two or more figures and only 35% carry three, so
--- stat_1_value..stat_3_label would be six columns that are mostly NULL and would need a
--- seventh migration the day the design wants four.
+-- JSONB rather than three pairs of columns, because the row is variable-length: plenty of
+-- summaries fill two slots rather than three, so stat_1_value..stat_3_label would be six
+-- columns that are mostly NULL and would need a seventh migration the day the design wants
+-- four.
 --
--- Nullable, and NULL is the ordinary case rather than an error state: about 40% of cards
--- have fewer than two figures in their summary and legitimately have no row. The web side
--- has to render that as a normal card, not as a card missing something.
+-- Nullable, and NULL is a normal state rather than an error: a summary with fewer than two
+-- figures legitimately has no row, and the web side must render that as an ordinary card.
+--
+-- The comment here originally quoted "60% carry two or more figures, 35% carry three".
+-- Corrected because that measurement was taken against llama3.1:8b — PIPELINE_ENV=dev
+-- defaults to Ollama — and not against the DeepSeek model production runs, which produces
+-- materially more figures per summary. The rate is model- and prompt-dependent; see
+-- scripts/probe-figures-by-model.ts. Editing an applied migration's comment rather than
+-- leaving a known-false claim where the rationale is most likely to be read; the file is
+-- tracked by version string, not checksum, so this does not affect re-application.
 --
 -- Not backfilled. Existing cards get NULL and stay NULL unless someone deliberately runs
 -- an extraction pass over them — a backfill is ~180 more LLM calls, which is a decision

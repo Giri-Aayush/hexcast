@@ -98,9 +98,12 @@ export function validateStats(candidates: unknown[], summary: string): Stat[] {
 /**
  * Extract the stat row for a summary, or null if it does not have one.
  *
- * Null is the ordinary case, not a failure: measured over 300 real cards, only ~60% carry
- * two or more figures at all, so the row is legitimately absent on roughly four cards in
- * ten and the card layout has to treat that as a normal state.
+ * Null is a normal state, not a failure. Some summaries carry too few figures to fill a
+ * row, so the card layout has to render without one — but do not treat the rate as fixed.
+ * It moves with the model and the prompt: an early measurement of 60% turned out to
+ * describe llama3.1:8b rather than the DeepSeek production runs, and the real rate is
+ * materially higher. scripts/probe-figures-by-model.ts measures it for a given
+ * configuration; anything quoted without naming the model and prompt is not a number.
  *
  * Never throws. A card with no stat row is a card; a card that failed to save because its
  * decoration could not be computed is a bug. Every failure path returns null and logs.
