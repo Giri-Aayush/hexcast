@@ -1,5 +1,7 @@
 import { supabase } from './client.js';
+import type { Category } from '@hexcast/shared';
 import type { ImageErrorKind } from '../processors/image-generator.js';
+import { POOL_SIZE, poolPath, poolIndexFor } from '../processors/image-pool.js';
 
 /**
  * Storage and bookkeeping for card cover art.
@@ -67,4 +69,47 @@ export async function recordImageOutcome(
     .eq('id', cardId);
 
   if (error) throw new Error(`Failed to record image outcome for ${cardId}: ${error.message}`);
+}
+
+/**
+ * Which pool images exist, listed once per process rather than per card.
+ *
+ * Assignment must only ever index into images that ARE there. A URL pointing at a missing
+ * object 404s, and the card renders its dither fallback — identical to a card that was never
+ * assigned. So the check is real, and caching it keeps a per-card storage call out of the
+ * hot path.
+ */
+const poolCache = new Map<Category, string[]>();
+
+async function availablePoolPaths(category: Category): Promise<string[]> {
+  const cached = poolCache.get(category);
+  if (cached) return cached;
+
+  const { data } = await supabase.storage.from(IMAGE_BUCKET).list(`pool/${category}`, { limit: 1000 });
+  const present = new Set((data ?? []).map((f) => `pool/${category}/${f.name}`));
+  const paths = Array.from({ length: POOL_SIZE }, (_, i) => poolPath(category, i)).filter((p) =>
+    present.has(p),
+  );
+
+  poolCache.set(category, paths);
+  return paths;
+}
+
+/**
+ * The pool image for a card, or null if its category has none yet.
+ *
+ * Called at card CREATION, which is the whole point. Assigning in a backfill script made
+ * "every card has an image" a snapshot rather than a property: the 33 cards present when it
+ * ran were imaged, and every card written afterwards came out bare. A feed that has to be
+ * re-backfilled to stay correct is not fixed.
+ *
+ * Null is safe — the card is written without an image and renders the dither, exactly as a
+ * card whose category pool has not been generated should.
+ */
+export async function poolImageUrlFor(category: Category, cardId: string): Promise<string | null> {
+  const paths = await availablePoolPaths(category);
+  if (paths.length === 0) return null;
+
+  const path = paths[poolIndexFor(cardId, paths.length)];
+  return supabase.storage.from(IMAGE_BUCKET).getPublicUrl(path).data.publicUrl;
 }
