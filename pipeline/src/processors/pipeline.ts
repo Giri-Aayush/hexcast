@@ -7,6 +7,8 @@ import { classify } from './classifier.js';
 import { extractEntities } from './entity-checker.js';
 import { summarize } from './summarizer.js';
 import { scoreQualityBreakdown, shouldAutoSuppress } from './quality-scorer.js';
+import { isHighPriority } from './priority.js';
+import { generateImageFor } from './card-image-step.js';
 import { hashUrl } from '../utils/hash.js';
 import { loadConfig } from '../config.js';
 import { logger } from '../utils/logger.js';
@@ -267,7 +269,7 @@ export async function processRawItems(
       });
 
       // 9. Queue high-priority items (SECURITY / UPGRADE)
-      if (category === 'SECURITY' || category === 'UPGRADE') {
+      if (isHighPriority(category)) {
         const { error: hpqError } = await supabase
           .from('high_priority_queue')
           .insert({ card_id: cardId, category });
@@ -276,6 +278,11 @@ export async function processRawItems(
         } else {
           logger.info(`HIGH PRIORITY: ${category} card queued`);
         }
+
+        // 9b. Cover art, same gate as the queue. After the card is written, never before:
+        // the card is the news and the image is decoration, so a slow or failed generation
+        // must not delay or block the thing people came for.
+        await generateImageFor(cardId, category, summary);
       }
 
       await markAsProcessed(item.id);
