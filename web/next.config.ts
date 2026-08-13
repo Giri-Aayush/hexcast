@@ -16,6 +16,15 @@ const nextConfig: NextConfig = withPWA({
   transpilePackages: ['@hexcast/shared'],
   outputFileTracingRoot: join(import.meta.dirname, '..'),
   productionBrowserSourceMaps: false,
+  async redirects() {
+    return [
+      {
+        source: '/landing',
+        destination: '/',
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     return [
       {

@@ -82,7 +82,7 @@ export default async function CardPage({ params }: Props) {
         actions replaced by "open the full feed". Server-rendered; no client state. */}
     <main className="hx-perma">
       <header className="hx-perma-head">
-        <Link href="/" aria-label="Back to feed" className="hx-perma-back">
+        <Link href="/feed" aria-label="Back to feed" className="hx-perma-back">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M10 3L5 8l5 5" />
           </svg>
@@ -117,7 +117,7 @@ export default async function CardPage({ params }: Props) {
           {extractDomain(card.canonical_url).toUpperCase()} · {relativeTime(card.published_at).toUpperCase()}
         </div>
         <div className="hx-perma-cta">
-          <Link href="/" className="hx-btn-ink" style={{ flex: 1, justifyContent: 'center' }}>
+          <Link href="/feed" className="hx-btn-ink" style={{ flex: 1, justifyContent: 'center' }}>
             Open the full feed
           </Link>
           <a href={card.canonical_url} target="_blank" rel="noopener noreferrer" className="hx-btn-quiet">
