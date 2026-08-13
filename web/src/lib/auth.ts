@@ -67,18 +67,13 @@ export const auth = betterAuth({
       }
     : {}),
 
-  // One person, one account, whichever door they use. Without this, signing in with
-  // Google when an email/password account already exists for that address fails with
-  // `account_not_linked` — Better Auth's anti-takeover default, which refuses to attach
-  // a social login to a pre-existing account. Google verifies its emails, so it's a
-  // trusted provider: a Google sign-in links to the existing user with the same email
-  // instead of bouncing them to /?error=account_not_linked.
-  account: {
-    accountLinking: {
-      enabled: true,
-      trustedProviders: ['google'],
-    },
-  },
+  // Deliberately NOT auto-linking a Google login to a pre-existing email/password
+  // account. Better Auth's default errors `account_not_linked` in that case, and we
+  // keep it: auto-linking would need a trusted provider, but since password signup is
+  // unverified (no mailer), an attacker could pre-register a victim's email and have it
+  // merged when the victim later signs in with Google. Instead the sign-in page catches
+  // that error and tells the existing user to sign in with their password. Safe without
+  // email verification. See email-verification-debt for the eventual proper fix.
 
   advanced: {
     ipAddress: {

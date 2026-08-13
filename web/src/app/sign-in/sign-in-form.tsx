@@ -24,20 +24,34 @@ export function SignInForm({ googleEnabled }: { googleEnabled: boolean }) {
 
   // The landing sign-up box funnels here as /sign-in?mode=up&email=... Read it on the
   // client (no Suspense boundary needed, unlike useSearchParams) to prefill the form
-  // and open straight in create-account mode.
+  // and open straight in create-account mode. Also handle the OAuth error Better Auth
+  // sends back (see the `google` handler / errorCallbackURL below).
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('mode') === 'up') setMode('up');
     const prefill = params.get('email');
     if (prefill) setEmail(prefill);
+    // account_not_linked: this email already has an email/password account, and we
+    // deliberately don't auto-merge it with Google. Put them in sign-in mode and say so.
+    if (params.get('error') === 'account_not_linked') {
+      setMode('in');
+      setError('You already have an account with this email. Sign in with your password below.');
+    }
   }, []);
 
   async function google() {
     if (busy) return;
     setBusy(true);
     setError(null);
-    // Better Auth redirects to Google and back to callbackURL; no need to unset busy.
-    const res = await signIn.social({ provider: 'google', callbackURL: '/feed' });
+    // Better Auth redirects to Google and back to callbackURL on success. On failure it
+    // redirects to errorCallbackURL with ?error=..., which the effect above reads — so
+    // the account_not_linked case lands back here with a clear message instead of on the
+    // landing page with a raw error code.
+    const res = await signIn.social({
+      provider: 'google',
+      callbackURL: '/feed',
+      errorCallbackURL: '/sign-in',
+    });
     if (res?.error) {
       setError(res.error.message ?? 'Could not reach Google. Try again.');
       setBusy(false);
