@@ -188,24 +188,10 @@ export const Card = memo(function Card({ card, position }: CardProps) {
 
   return (
     <article className="hx-card h-full" data-category={card.category}>
-      {/* 01 · header field. The generated image when the pipeline produced one (#70),
-          otherwise the dither texture. Both fill the same 128px band with the same
-          bottom fade, so the badge overlaps a faded lower edge and the layout never
-          shifts between imaged and un-imaged cards. Decorative either way — the image
-          is abstract texture, not information — so it's hidden from assistive tech. */}
-      {card.image_url && !imgFailed ? (
-        <img
-          className="hx-cardimg"
-          src={card.image_url}
-          alt=""
-          aria-hidden="true"
-          loading="lazy"
-          decoding="async"
-          onError={() => setImgFailed(true)}
-        />
-      ) : (
-        <div className="hx-dither" aria-hidden="true" />
-      )}
+      {/* 01 · header field: the dither grid, always. It's a signature of the card and
+          the badge overlaps its faded lower edge — cover art goes lower, in the body's
+          empty space (block 06), so the grid is never hidden. */}
+      <div className="hx-dither" aria-hidden="true" />
 
       {/* 02 · badge overlaps the faded lower half of the field */}
       <div className="hx-badge-row">
@@ -251,9 +237,24 @@ export const Card = memo(function Card({ card, position }: CardProps) {
         </p>
       </div>
 
-      {/* 06 · absorbs the 45-67 word swing so the action bar cannot move between
-          cards, which would make the save button a moving target under a thumb */}
-      <div className="hx-spacer" />
+      {/* 06 · cover art fills the empty lower space when the pipeline produced an
+          image; otherwise a plain spacer. Either way it flex-grows to absorb the
+          45-67 word swing so the action bar cannot move between cards (which would
+          make the save button a moving target under a thumb). The image is abstract
+          texture, not information, so it's hidden from assistive tech. */}
+      {card.image_url && !imgFailed ? (
+        <img
+          className="hx-cardimg"
+          src={card.image_url}
+          alt=""
+          aria-hidden="true"
+          loading="lazy"
+          decoding="async"
+          onError={() => setImgFailed(true)}
+        />
+      ) : (
+        <div className="hx-spacer" />
+      )}
 
       {/* 07 */}
       <div className="hx-meta">{meta.toUpperCase()}</div>
