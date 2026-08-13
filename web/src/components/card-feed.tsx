@@ -13,12 +13,16 @@ import { usePreferences } from '@/stores/preferences';
 interface CardFeedProps {
   initialCards: (CardType & { seen?: boolean })[];
   personalized?: boolean;
+  initialHasMore?: boolean;
   initialUnseenCount?: number;
 }
 
-export function CardFeed({ initialCards, personalized, initialUnseenCount }: CardFeedProps) {
+export function CardFeed({ initialCards, personalized, initialHasMore, initialUnseenCount }: CardFeedProps) {
   const [cards, setCards] = useState<(CardType & { seen?: boolean })[]>(initialCards);
-  const [hasMore, setHasMore] = useState(initialCards.length === 20);
+  // Prefer the server-derived flag; fall back to the page-fill heuristic for any
+  // caller that doesn't pass it (a deep-linked feed prepends a card, which would make
+  // the heuristic wrong).
+  const [hasMore, setHasMore] = useState(initialHasMore ?? initialCards.length === 20);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const [category, setCategory] = useState<string | null>(null);
@@ -27,6 +31,10 @@ export function CardFeed({ initialCards, personalized, initialUnseenCount }: Car
   const [refreshing, setRefreshing] = useState(false);
   const [showSwipeHint, setShowSwipeHint] = useState(false);
   const [totalUnseenCount, setTotalUnseenCount] = useState(initialUnseenCount ?? 0);
+  // Per-category totals for the filter chip, so it shows how many cards the current
+  // filter actually has instead of how many happen to be loaded (which looked like the
+  // feed only had 20). Null until fetched; the chip falls back to the loaded count.
+  const [catCounts, setCatCounts] = useState<Record<string, number> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // ── Batch fetch reactions + saved (once per card set, not per card) ──
@@ -41,6 +49,27 @@ export function CardFeed({ initialCards, personalized, initialUnseenCount }: Car
     () => cards.filter(c => !hiddenSet.has(c.source_id)),
     [cards, hiddenSet],
   );
+
+  useEffect(() => {
+    let alive = true;
+    fetch('/api/stats/cards', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (alive && d?.byCategory) setCatCounts(d.byCategory);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  // The chip's number: the total for the active filter (sum across categories for ALL),
+  // falling back to the loaded count until the totals arrive.
+  const filterCount = catCounts
+    ? category
+      ? catCounts[category] ?? 0
+      : Object.values(catCounts).reduce((a, b) => a + b, 0)
+    : visibleCards.length;
 
   useEffect(() => {
     if (cards.length > 0) {
@@ -321,7 +350,7 @@ export function CardFeed({ initialCards, personalized, initialUnseenCount }: Car
               {category ? (CATEGORY_LABELS[category] ?? category).toUpperCase() : 'ALL'}
             </span>
             <span className="hx-filter-sep" aria-hidden="true" />
-            <span className="hx-filter-count">{visibleCards.length}</span>
+            <span className="hx-filter-count">{filterCount}</span>
           </button>
           <SignedIn>
             <UserButton
