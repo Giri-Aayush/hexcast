@@ -18,7 +18,7 @@ const SYSTEM_PROMPT = `You turn a news summary into abstract visual motifs for c
 Return a JSON array of 2-3 short phrases. Each phrase is 1-3 words describing FORM, MOTION,
 TEXTURE or MOOD only.
 
-Examples of the register: ${MOTIF_PROMPT_EXAMPLES.map((e) => `"${e}"`).join(', ')}.
+Examples of the register: ${MOTIF_PROMPT_EXAMPLES.map((e: string) => `"${e}"`).join(', ')}.
 
 HARD RULES:
 - NEVER name a company, protocol, product, chain, token, person or place.
@@ -27,8 +27,21 @@ HARD RULES:
   lock, key, building, screen.
 - Describe how the news FEELS as shape and movement, never what it depicts.
 
-A story about a security breach becomes ["fracture", "fault line", "held tension"].
-A story about a fee vote becomes ["balance", "weighed order", "quiet threshold"].
+DIRECTION MATTERS AS MUCH AS TEXTURE. Match the motif to the way the news actually goes:
+- something improved, sped up, fixed or verified -> easing, quickening, sealing, settling,
+  smoothing, resolution
+- something broke, leaked, stalled or is at risk -> fracture, strain, fault line, erosion
+Getting this backwards is worse than being vague. A latency improvement drawn as a fracture
+tells the reader the opposite of the story.
+
+DO NOT BORROW A TECHNICAL TERM WHOSE EVERYDAY MEANING POINTS THE OTHER WAY. "fault merging"
+is a performance feature, but "fault" reads as a crack, and a faster client came back drawn
+as a torn page. Describe the EFFECT on the reader's world, not the engineering vocabulary.
+
+A security breach becomes ["fracture", "fault line", "held tension"].
+A fee vote becomes ["balance", "weighed order", "quiet threshold"].
+A client shipping a latency win becomes ["quickened flow", "eased passage", "smoothed seam"].
+A patch closing bugs becomes ["sealing", "quiet repair", "settled edge"].
 
 Output only the JSON array. No prose, no code fences.`;
 
@@ -69,7 +82,7 @@ export async function extractMotifs(
   }
 
   const proposed = parsePhrases(raw);
-  const kept = scrubMotifs(proposed);
+  const kept = scrubMotifs(proposed, summary);
 
   if (proposed.length > 0 && kept.length === 0) {
     logger.warn(

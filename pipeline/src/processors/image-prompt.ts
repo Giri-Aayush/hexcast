@@ -33,56 +33,69 @@ const CATEGORY_STYLES: Record<Category, CategoryStyle> = {
 };
 
 /**
- * The words a motif is allowed to be built from.
+ * What a motif may NOT contain.
  *
- * An ALLOW list, not a reject list, and that is the whole safety argument. A reject list
- * fails open: it stops the protocol names we thought of and passes every one we did not,
- * and the names we cannot enumerate — a protocol launched this morning — are exactly the
- * case that matters. An allow list fails closed. Anything unrecognised is dropped, so the
- * worst outcome is a plainer image rather than a leaked entity.
+ * This was an allow list of about 150 abstract words, chosen to fail closed: anything
+ * unrecognised was dropped, so an unknown protocol name could never leak into an image
+ * prompt. The reasoning was right about the risk and catastrophically wrong about the cost.
+ * Measured on a live run, it rejected 24 of 24 motifs — a 0% pass rate — so every image was
+ * falling back to category mood alone and the feature the user actually asked for, art that
+ * relates to the story, did not exist. The rejected motifs were things like "severed
+ * conduit", "lingering drag" and "stitched restart": precisely what was wanted.
  *
- * Everything here describes form, motion, texture or mood. Nothing here can name a thing
- * in the world.
+ * The fix is not a longer allow list. It is that THE ENTITIES WE MUST EXCLUDE ARE
+ * ENUMERABLE, and the argument for failing closed rested on believing they were not:
+ *
+ *   1. A protocol or product name in THIS card appears capitalised in THIS summary, which
+ *      the extractor already has. That is an exact, per-card check needing no global list.
+ *   2. Names that appear uncapitalised or not at all are covered by a small static list of
+ *      chains and tokens.
+ *   3. What is left is the real remaining risk — not entities but DEPICTABLE THINGS. A model
+ *      given "steady hand" draws a hand; given "grid of mirrors" it draws mirrors. Those are
+ *      the two motifs out of 24 that should have been dropped, and a reject list drops
+ *      exactly them.
+ *
+ * So the guard now removes what is dangerous rather than admitting only what is familiar.
  */
-const MOTIF_VOCABULARY = new Set([
-  // form and structure
-  'fracture', 'fault', 'line', 'lattice', 'grid', 'mesh', 'seam', 'fissure', 'crack',
-  'layer', 'strata', 'sediment', 'band', 'field', 'plane', 'edge', 'boundary', 'threshold',
-  'frame', 'scaffold', 'column', 'arc', 'curve', 'spiral', 'orbit', 'ring', 'node',
-  'branch', 'root', 'web', 'weave', 'knot', 'chain', 'link', 'block', 'facet', 'prism',
-  // motion and change
-  'flow', 'drift', 'cascade', 'surge', 'swell', 'ripple', 'wave', 'pulse', 'rhythm',
-  'convergence', 'divergence', 'expansion', 'contraction', 'ascent', 'descent', 'rise',
-  'fall', 'shift', 'passage', 'crossing', 'transition', 'emergence', 'dissolution',
-  'erosion', 'accretion', 'momentum', 'cadence', 'oscillation', 'settling', 'gathering',
-  // texture and light
-  'grain', 'noise', 'static', 'interference', 'signal', 'shadow', 'light', 'glow',
-  'haze', 'mist', 'blur', 'wash', 'stain', 'bleed', 'grit', 'smooth', 'rough', 'soft',
-  'sharp', 'dense', 'sparse', 'translucent', 'opaque', 'depth', 'surface',
-  // mood and force
-  'tension', 'balance', 'weight', 'pressure', 'stillness', 'quiet', 'restraint',
-  'vigilance', 'caution', 'resolve', 'order', 'disorder', 'fragility', 'stability',
-  'symmetry', 'asymmetry', 'containment', 'release', 'alignment', 'fragment',
-  // manner: how a form or motion behaves. No modifier here can name a thing.
-  // These exist because the extraction prompt TEACHES phrases like "held tension" and
-  // "slow erosion" — an allow list that rejects the vocabulary its own prompt demonstrates
-  // drops everything and looks like a model failure. MOTIF_PROMPT_EXAMPLES below is
-  // checked against this set by a test so the two cannot drift apart again.
-  'held', 'slow', 'fast', 'quiet', 'loud', 'deep', 'shallow', 'wide', 'narrow', 'thin',
-  'thick', 'faint', 'bright', 'dark', 'warm', 'cool', 'still', 'restless', 'steady',
-  'sudden', 'gradual', 'partial', 'broken', 'whole', 'layered', 'weighed', 'measured',
-  'converging', 'diverging', 'rising', 'falling', 'flowing', 'settling', 'gathering',
-  'spreading', 'receding', 'fracturing', 'shifting', 'breach', 'drift', 'lift',
 
-  // connective words that carry no identity
-  'and', 'of', 'in', 'a', 'an', 'the', 'into', 'through', 'across', 'against', 'under',
+/**
+ * Things a model renders as a recognisable object. Body parts and named artifacts only —
+ * NOT textural nouns like seam, conduit or horizon, which read as abstract shape.
+ */
+const DEPICTABLE = new Set([
+  // people
+  'hand', 'hands', 'face', 'faces', 'eye', 'eyes', 'head', 'body', 'finger', 'fingers',
+  'arm', 'arms', 'leg', 'foot', 'figure', 'person', 'people', 'crowd', 'man', 'woman',
+  'child', 'children', 'silhouette', 'portrait',
+  // artifacts
+  'wallet', 'purse', 'coin', 'coins', 'banknote', 'cash', 'chart', 'charts', 'graph',
+  'diagram', 'server', 'servers', 'computer', 'laptop', 'phone', 'screen', 'monitor',
+  'keyboard', 'lock', 'padlock', 'key', 'keys', 'door', 'gate', 'window', 'building',
+  'tower', 'city', 'bridge', 'road', 'car', 'ship', 'rocket', 'mirror', 'mirrors',
+  'clock', 'watch', 'book', 'page', 'map', 'flag', 'shield', 'sword', 'hammer', 'scales',
+  'chain', 'chains', 'brick', 'bricks', 'vault', 'safe', 'box', 'crate',
 ]);
 
 /**
- * The phrases the extraction prompt shows the model. Exported so a test can assert every
- * one survives scrubMotifs — if a prompt example is not in the vocabulary, the model is
- * being taught to produce output we silently throw away, and the symptom is "the filter
- * rejects everything" with no obvious cause.
+ * Chains, tokens and organisations that might appear uncapitalised, or be alluded to
+ * without appearing in the summary at all. Deliberately short: rule 1 above catches
+ * anything actually named in the card, so this only has to cover the well-known names a
+ * model might reach for unprompted.
+ */
+const KNOWN_ENTITIES = new Set([
+  'ethereum', 'eth', 'bitcoin', 'btc', 'solana', 'sol', 'arbitrum', 'optimism', 'base',
+  'polygon', 'starknet', 'zksync', 'scroll', 'linea', 'uniswap', 'aave', 'lido', 'curve',
+  'compound', 'maker', 'ens', 'safe', 'flashbots', 'paradigm', 'coinbase', 'binance',
+  'tether', 'usdt', 'usdc', 'dai', 'nethermind', 'geth', 'besu', 'erigon', 'reth',
+  'prysm', 'lighthouse', 'teku', 'nimbus', 'lodestar', 'metamask', 'opensea',
+]);
+
+/**
+ * The phrases the extraction prompt shows the model. Asserted by a test to survive
+ * scrubMotifs — if an example is rejected, the model is being taught to produce output we
+ * throw away, and the symptom reads as "the model is failing" rather than "the filter and
+ * the prompt disagree". That is not hypothetical: the previous allow list rejected its own
+ * prompt's examples until a test pinned them together.
  */
 export const MOTIF_PROMPT_EXAMPLES = [
   'fracture',
@@ -94,16 +107,50 @@ export const MOTIF_PROMPT_EXAMPLES = [
   'quiet threshold',
   'balance',
   'weighed order',
+  // Positive-direction examples, added after a latency IMPROVEMENT came back drawn as a
+  // fracture. The register was only ever demonstrated with neutral and negative phrases, so
+  // the model had nothing to imitate when the news was good.
+  'quickened flow',
+  'eased passage',
+  'smoothed seam',
+  'sealing',
+  'settled edge',
 ];
 
+const MAX_MOTIF_WORDS = 4;
+const MAX_MOTIFS = 3;
+
 /**
- * Keep a motif only if every word in it is allowed.
+ * Capitalised words in the summary, lowercased.
  *
- * Also drops anything with a digit, which the vocabulary would already catch — kept as an
- * explicit rule because "no numbers in the image" is a stated requirement and a reader of
- * this code should see it enforced rather than infer it from a word list.
+ * A sentence-initial capital is not a proper noun, so the first word of each sentence is
+ * skipped — otherwise "Faster fault merging" would be rejected because the summary happened
+ * to open with "Faster". That distinction is why the position matters and why a blanket
+ * capitalisation rule was never going to work on its own.
  */
-export function scrubMotifs(motifs: string[]): string[] {
+function properNounsIn(summary: string): Set<string> {
+  const found = new Set<string>();
+  for (const sentence of summary.split(/(?<=[.!?])\s+/)) {
+    const words = sentence.trim().split(/\s+/);
+    for (const [index, word] of words.entries()) {
+      const bare = word.replace(/[^A-Za-z0-9.-]/g, '');
+      if (index === 0 || !bare) continue;
+      if (/^[A-Z]/.test(bare)) found.add(bare.toLowerCase());
+    }
+  }
+  return found;
+}
+
+/**
+ * Keep the motifs that carry no identity and depict no object.
+ *
+ * `summary` is optional so buildImagePrompt can apply the structural rules as a second
+ * layer without needing the card text. Pass it wherever it is available — the per-card
+ * proper-noun check is the strongest of the rules and the only one that adapts to a
+ * protocol nobody has heard of yet.
+ */
+export function scrubMotifs(motifs: string[], summary = ''): string[] {
+  const forbidden = properNounsIn(summary);
   const kept: string[] = [];
 
   for (const motif of motifs) {
@@ -111,12 +158,14 @@ export function scrubMotifs(motifs: string[]): string[] {
     if (!phrase || /\d/.test(phrase)) continue;
 
     const words = phrase.split(/[\s,-]+/).filter(Boolean);
-    if (words.length === 0 || words.length > 4) continue;
-    if (!words.every((word) => MOTIF_VOCABULARY.has(word))) continue;
+    if (words.length === 0 || words.length > MAX_MOTIF_WORDS) continue;
+    if (words.some((w) => DEPICTABLE.has(w))) continue;
+    if (words.some((w) => KNOWN_ENTITIES.has(w))) continue;
+    if (words.some((w) => forbidden.has(w))) continue;
     if (kept.includes(phrase)) continue;
 
     kept.push(phrase);
-    if (kept.length === 3) break;
+    if (kept.length === MAX_MOTIFS) break;
   }
 
   return kept;
