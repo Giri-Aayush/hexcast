@@ -13,6 +13,12 @@
  */
 
 .hxl {
+  /* The app's <body> is overflow-hidden (the feed is a fixed snap-scroll shell), so
+     every view owns its own scroll, exactly like .hx-page. Without this the landing
+     page could not scroll past the hero on a real screen — a full-height screenshot
+     hides it because the whole page renders regardless of overflow. */
+  height: 100dvh;
+  overflow-y: auto;
   overflow-x: hidden;
   background: var(--surface);
   color: var(--ink);
