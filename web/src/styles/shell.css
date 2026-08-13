@@ -712,8 +712,107 @@
   color: var(--ink-dim);
 }
 
+/* Centre and cap the whole page. Without this the content hugged the left edge on a
+   wide window — each block capped at its own measure — leaving the right half dead. */
+.hx-you-wrap {
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+.hx-you-head {
+  padding: 10px 5px 20px;
+}
+
+.hx-you-head h1 {
+  margin: 0;
+  font: 600 26px/1.1 var(--font-sans);
+  letter-spacing: -0.03em;
+}
+
+.hx-you-head p {
+  margin: 6px 0 0;
+  font: 400 14px/1.5 var(--font-sans);
+  color: var(--ink-dim);
+}
+
+/* Signed-out invitation as a real panel rather than a bare left-aligned block, so it
+   reads as intentional centred on desktop and full-width on mobile. */
+.hx-you-cta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  padding: 24px 22px;
+  margin: 4px 0 6px;
+}
+
+.hx-you-cta .hx-empty-rule {
+  margin-bottom: 16px;
+}
+
+.hx-you-cta h2 {
+  margin: 0 0 8px;
+  font: 600 20px/1.25 var(--font-sans);
+  letter-spacing: -0.02em;
+}
+
+.hx-you-cta p {
+  margin: 0 0 20px;
+  font: 400 14px/1.6 var(--font-sans);
+  color: var(--ink-dim);
+  max-width: 52ch;
+  text-wrap: pretty;
+}
+
+/* The app's own numbers, built like the card's stat row: hairline top, mono value,
+   mono label. Gives the page an anchor and uses the width instead of leaving it empty. */
+.hx-about-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  padding: 24px 5px 4px;
+}
+
+.hx-about-stats > div {
+  border-top: 1px solid var(--line-strong);
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.hx-about-stats span:first-child {
+  font: 500 22px/1 var(--font-mono);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.hx-about-stats span:last-child {
+  font: 400 9.5px/1 var(--font-mono);
+  letter-spacing: 0.12em;
+  color: var(--ink-dim);
+}
+
+@media (max-width: 520px) {
+  .hx-about-stats { grid-template-columns: 1fr 1fr; gap: 16px 10px; }
+}
+
 .hx-about {
-  padding: 26px 5px 0;
+  padding: 28px 5px 0;
+}
+
+/* Two columns on desktop, one on mobile — breaks the monotonous single stack and
+   fills the width the centred container now gives us. */
+.hx-about-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 4px 34px;
+}
+
+@media (min-width: 720px) {
+  .hx-about-grid { grid-template-columns: 1fr 1fr; }
 }
 
 .hx-about-section h2 {
@@ -724,10 +823,9 @@
 }
 
 .hx-about-section p {
-  margin: 0 0 24px;
+  margin: 0 0 22px;
   font: 400 14.5px/1.65 var(--font-sans);
   color: var(--ink);
-  max-width: 60ch;
   text-wrap: pretty;
 }
 
@@ -735,7 +833,7 @@
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
-  padding: 2px 0 28px;
+  padding: 6px 0 28px;
 }
 
 .hx-about-foot {
