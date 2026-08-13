@@ -71,9 +71,24 @@ export function YouPanel() {
           </div>
         </div>
 
-        <SignOutButton>
-          <button className="hx-btn-quiet">Sign out</button>
-        </SignOutButton>
+        <div className="hx-you-actions">
+          <button
+            className="hx-btn-quiet"
+            onClick={() => {
+              // Clear the seen-flag and hard-navigate so SpotlightTour remounts and
+              // re-fires on the feed. A client-side push wouldn't remount it (the tour
+              // lives in the persistent app chrome), so its once-per-mount guard would
+              // swallow the replay.
+              localStorage.removeItem('hexcast_tour_completed');
+              window.location.href = '/feed';
+            }}
+          >
+            Replay tour
+          </button>
+          <SignOutButton>
+            <button className="hx-btn-quiet">Sign out</button>
+          </SignOutButton>
+        </div>
       </SignedIn>
 
       <SignedOut>
