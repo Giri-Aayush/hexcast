@@ -14,7 +14,7 @@ const FACTS = [
   { value: '88', label: 'SOURCES' },
   { value: '17', label: 'TIERS' },
   { value: '8', label: 'CATEGORIES' },
-  { value: '30M–4H', label: 'REFRESH' },
+  { value: '30M-4H', label: 'REFRESH' },
 ];
 
 /**
@@ -57,7 +57,7 @@ export function YouPanel() {
 
         <div className="hx-statrow">
           <div>
-            <span>{initialized ? savedCards.length : '–'}</span>
+            <span>{initialized ? savedCards.length : '·'}</span>
             <span>SAVED</span>
           </div>
           <div>

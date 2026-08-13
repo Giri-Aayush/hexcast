@@ -54,7 +54,7 @@ export function SpotlightTour() {
         element: '#hexcast-logo',
         popover: {
           title: 'Welcome to Hexcast',
-          description: 'Ethereum ecosystem intelligence — curated from 61 sources, scored for quality, and condensed to exactly 60 words per item. This tour takes under a minute.',
+          description: 'Ethereum ecosystem intelligence, curated from 88 sources, scored for quality, and condensed into short, self-contained cards. This tour takes under a minute.',
           side: 'bottom' as const,
           align: 'start' as const,
         },
@@ -62,8 +62,8 @@ export function SpotlightTour() {
       {
         element: '.card-summary h2',
         popover: {
-          title: '60 words. No more.',
-          description: 'Every card is an AI-generated summary of a real source — EIPs, governance votes, security incidents, client releases. The original source is always one tap away.',
+          title: 'One card per story',
+          description: 'Every card is an AI-written summary of a real source: EIPs, governance votes, security incidents, client releases. The original source is always one tap away.',
           side: 'bottom' as const,
           align: 'start' as const,
         },
@@ -72,7 +72,7 @@ export function SpotlightTour() {
         element: '.card-actions',
         popover: {
           title: 'Save, react, report',
-          description: 'Bookmark cards to read later. React to help tune the feed. Flag anything that looks wrong — we review every report.',
+          description: 'Bookmark cards to read later. React to help tune the feed. Flag anything that looks wrong, and we review every report.',
           side: 'top' as const,
           align: 'start' as const,
         },
@@ -81,7 +81,7 @@ export function SpotlightTour() {
         element: '#category-filter',
         popover: {
           title: 'Filter by what matters',
-          description: 'Tap any category to see only that signal — EIPs, governance, security, metrics, and more. Tap again to clear.',
+          description: 'Tap any category to see only that signal: EIPs, governance, security, metrics, and more. Tap again to clear.',
           side: 'bottom' as const,
           align: 'start' as const,
         },
@@ -90,7 +90,7 @@ export function SpotlightTour() {
         element: '[data-nav="sources"]',
         popover: {
           title: 'Control your sources',
-          description: 'Toggle any of 61 sources on or off. Hidden sources never appear in your feed — your feed, your signal.',
+          description: 'Toggle any of 88 sources on or off. Hidden sources never appear in your feed, so your feed stays your signal.',
           side: 'top' as const,
           align: 'center' as const,
         },
@@ -102,7 +102,7 @@ export function SpotlightTour() {
               element: '#sign-in-button',
               popover: {
                 title: 'Personalize your feed',
-                description: 'Sign in to unlock unseen-first ordering — cards you haven\'t read surface before ones you have. Bookmarks and reactions sync across devices.',
+                description: 'Sign in to unlock unseen-first ordering: cards you haven\'t read surface before ones you have. Bookmarks and reactions sync across devices.',
                 side: 'bottom' as const,
                 align: 'end' as const,
               },
@@ -125,7 +125,7 @@ export function SpotlightTour() {
       {
         popover: {
           title: 'Swipe up to read',
-          description: 'Each card is a 60-word summary of real Ethereum news. Swipe up for the next one.',
+          description: 'Each card is a short summary of real Ethereum news. Swipe up for the next one.',
         },
       },
       {
