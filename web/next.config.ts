@@ -33,7 +33,13 @@ const nextConfig: NextConfig = withPWA({
               "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com https://us.i.posthog.com",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
-              "img-src 'self' data: blob:",
+              // Card cover art is stored in Supabase Storage and rendered as a plain <img> from
+              // that host, so the bucket origin has to be allowed or the browser refuses every
+              // one of them. The failure is invisible: card.tsx falls back to the dither texture
+              // on error, so a blocked image renders as a normal un-imaged card and looks like
+              // the pipeline produced nothing. *.supabase.co is already trusted in connect-src
+              // on this same policy, so this grants no new origin.
+              "img-src 'self' data: blob: https://*.supabase.co",
               "connect-src 'self' https://*.supabase.co https://us.i.posthog.com https://us.posthog.com https://*.sentry.io",
               "frame-src https://challenges.cloudflare.com",
               "worker-src 'self' blob:",
