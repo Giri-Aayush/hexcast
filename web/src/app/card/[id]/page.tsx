@@ -112,7 +112,15 @@ export default async function CardPage({ params }: Props) {
             )}
           </p>
         </div>
-        <div className="hx-spacer" />
+        {/* Cover art in the body, same as the feed card. Server component, so no
+            onError fallback — but the pool only assigns image URLs that exist, so a
+            404 isn't a live risk here. */}
+        {card.image_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img className="hx-cardimg" src={card.image_url} alt="" aria-hidden="true" loading="lazy" decoding="async" />
+        ) : (
+          <div className="hx-spacer" />
+        )}
         <div className="hx-meta">
           {extractDomain(card.canonical_url).toUpperCase()} · {relativeTime(card.published_at).toUpperCase()}
         </div>
