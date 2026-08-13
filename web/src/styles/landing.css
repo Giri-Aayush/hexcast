@@ -316,8 +316,8 @@ a.hxl-btn-pill {
 
 .hxl-deck {
   position: relative;
-  height: 296px;
-  margin-top: 56px;
+  height: 430px;
+  margin-top: 14px;
   overflow: hidden;
 }
 
@@ -337,7 +337,7 @@ a.hxl-btn-pill {
   justify-content: center;
   align-items: flex-start;
   gap: 20px;
-  padding-top: 30px;
+  padding-top: 0;
 }
 
 .hxl-deck-card {
@@ -703,8 +703,8 @@ a.hxl-footer-link {
   }
 
   .hxl-deck {
-    height: 240px;
-    margin-top: 40px;
+    height: 320px;
+    margin-top: 10px;
   }
 
   .hxl-deck-inner {

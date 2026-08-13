@@ -28,9 +28,9 @@ import '@/styles/landing.css';
 const HERO_HIGHLIGHT_PHRASE = 'sixty words';
 const WORDS_PER_CARD_STAT = '60';
 
-const COUNTER_START = 41180;
-const COUNTER_INTERVAL_MS = 4200;
 const COUNTER_DIGITS = 5;
+// Re-poll the real count often enough to feel live without hammering the DB.
+const COUNTER_POLL_MS = 15000;
 
 type CategoryKey =
   | 'RESEARCH'
@@ -178,19 +178,34 @@ function smoothScrollTo(e: React.MouseEvent<HTMLAnchorElement>, id: string) {
 /* ── Live counter ─────────────────────────────────────────────────────── */
 
 function DigitCounter() {
-  const [value, setValue] = useState(COUNTER_START);
+  // null until the first fetch resolves, so we never flash a fake number.
+  const [value, setValue] = useState<number | null>(null);
 
   useEffect(() => {
-    const id = setInterval(() => {
-      setValue((v) => v + 1);
-    }, COUNTER_INTERVAL_MS);
-    return () => clearInterval(id);
+    let alive = true;
+    async function load() {
+      try {
+        const res = await fetch('/api/stats/cards', { cache: 'no-store' });
+        if (!res.ok) return;
+        const { count } = await res.json();
+        if (alive && typeof count === 'number') setValue(count);
+      } catch {
+        // Keep the last value on a transient failure rather than resetting.
+      }
+    }
+    load();
+    const id = setInterval(load, COUNTER_POLL_MS);
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
   }, []);
 
-  const digits = String(value).padStart(COUNTER_DIGITS, '0').split('');
+  const shown = value ?? 0;
+  const digits = String(shown).padStart(COUNTER_DIGITS, '0').split('');
 
   return (
-    <div className="hxl-counter" aria-label={`${value} cards published since launch`}>
+    <div className="hxl-counter" aria-label={`${shown} cards published since launch`}>
       {digits.map((d, i) => (
         <span
           key={i}
