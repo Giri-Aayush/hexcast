@@ -82,6 +82,30 @@ import { processRawItems, roundRobinBySource } from '../pipeline.js';
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 
+/**
+ * One timestamp for every fixture item, captured once.
+ *
+ * This is the fix for the flake tracked in #75, and the cause was neither mock leakage nor
+ * the semaphore. `makeItem` called `new Date()` per item, and processRawItems sorts
+ * NEWEST-FIRST — so items constructed later in an array literal were genuinely newer, and
+ * the ordering the tests assert held only while all of them landed inside the same
+ * millisecond. When the clock ticked mid-fixture the sort reordered them, which is why it
+ * failed roughly once in a hundred runs, more often on a loaded CI runner, and never under
+ * --sequence.shuffle.tests: shuffling test order does not change whether a millisecond ticks
+ * during a fixture.
+ *
+ * Reproduced exactly by making one item 1ms newer, which produced CI's failure verbatim:
+ *   expected [ 'blog', 'forum', 'forum' ] to deeply equal [ 'forum', 'forum', 'forum' ]
+ *
+ * Identical timestamps make the sort a no-op — Array.prototype.sort is stable, so equal
+ * elements keep input order — which is what every ordering assertion here already assumes.
+ * Still relative to now rather than a hardcoded date, so the recency-gate tests do not rot as
+ * the calendar moves past a fixed value.
+ *
+ * Tests that care about relative age set `published_at` explicitly and are unaffected.
+ */
+const FIXTURE_NOW = new Date().toISOString();
+
 function makeItem(id: string) {
   return {
     id,
@@ -90,8 +114,8 @@ function makeItem(id: string) {
     raw_title: 'Test',
     raw_text: 'Test content',
     raw_metadata: {},
-    published_at: new Date().toISOString(),
-    fetched_at: new Date().toISOString(),
+    published_at: FIXTURE_NOW,
+    fetched_at: FIXTURE_NOW,
     processed: false,
   };
 }
