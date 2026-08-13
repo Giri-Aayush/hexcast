@@ -128,7 +128,23 @@ const defaultConfig = {
 // ── Setup ────────────────────────────────────────────────────────────────
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  // resetAllMocks, not clearAllMocks. clearAllMocks wipes call history but LEAVES
+  // implementations, including any queued mockResolvedValueOnce that a test did not consume
+  // — so a leftover Once can be picked up by whichever test runs next, which then gets a
+  // stale value instead of the default below.
+  //
+  // This is HARDENING, not a diagnosed fix. Two non-reproducing failures appeared in this
+  // file, and this hazard is the most plausible mechanism, but I could not reproduce either
+  // failure on the old code — not in repeated full runs, nor in eight runs with
+  // --sequence.shuffle.tests. So the flake remains unexplained; this only removes a class of
+  // order-dependence that could produce it. See the tracking issue before assuming it is
+  // solved.
+  vi.resetAllMocks();
+
+  // Reset clears implementations too, so every mock the tests rely on is re-established
+  // here rather than inherited from whatever happened to run before.
+  mocks.mockGetUnprocessedItems.mockResolvedValue([]);
+  mocks.mockNormalize.mockReturnValue(null);
 
   // Default config
   mocks.mockLoadConfig.mockReturnValue({ ...defaultConfig });
