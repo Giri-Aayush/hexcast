@@ -31,6 +31,16 @@ export const RSS_FEEDS: Record<string, string> = {
   'github.com/ConsenSys/teku': 'https://github.com/ConsenSys/teku/releases.atom',
   'github.com/status-im/nimbus-eth2': 'https://github.com/status-im/nimbus-eth2/releases.atom',
   'github.com/ChainSafe/lodestar': 'https://github.com/ChainSafe/lodestar/releases.atom',
+  // L2 node + spec releases (#78)
+  'github.com/OffchainLabs/nitro': 'https://github.com/OffchainLabs/nitro/releases.atom',
+  'github.com/ethereum-optimism/optimism': 'https://github.com/ethereum-optimism/optimism/releases.atom',
+  'github.com/base/node': 'https://github.com/base/node/releases.atom',
+  'github.com/matter-labs/zksync-era': 'https://github.com/matter-labs/zksync-era/releases.atom',
+  'github.com/scroll-tech/scroll': 'https://github.com/scroll-tech/scroll/releases.atom',
+  'github.com/Consensys/linea-monorepo': 'https://github.com/Consensys/linea-monorepo/releases.atom',
+  'github.com/starkware-libs/cairo': 'https://github.com/starkware-libs/cairo/releases.atom',
+  'github.com/ethereum/consensus-specs': 'https://github.com/ethereum/consensus-specs/releases.atom',
+  'github.com/ethereum/execution-specs': 'https://github.com/ethereum/execution-specs/releases.atom',
   // Tier 11 — Developer tooling
   'github.com/foundry-rs/foundry': 'https://github.com/foundry-rs/foundry/releases.atom',
   // Tier 12 — Research & security blogs (RSS)

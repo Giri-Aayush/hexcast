@@ -235,6 +235,86 @@ export const TIER_5_SOURCES: SourceDefinition[] = [
     poll_interval_s: 1800,
     default_category: 'UPGRADE',
   },
+
+  // L2 node and client releases. We already track what the L2s DISCUSS — Arbitrum,
+  // Optimism, Polygon, Scroll, Linea and Starknet all have governance forums here — but
+  // not what they SHIP. A rollup upgrading its node is the same class of event as Geth
+  // cutting a release, and it was the one genuinely missing category of release feed.
+  //
+  // Every URL below was fetched live before being added (see #78); several candidates
+  // proposed alongside these were dead and are not here.
+  {
+    id: 'github.com/OffchainLabs/nitro',
+    display_name: 'Arbitrum Nitro (L2 Node)',
+    base_url: 'https://github.com/OffchainLabs/nitro',
+    api_type: 'rss',
+    poll_interval_s: 1800,
+    default_category: 'UPGRADE',
+  },
+  {
+    id: 'github.com/ethereum-optimism/optimism',
+    display_name: 'OP Stack (L2 Node)',
+    base_url: 'https://github.com/ethereum-optimism/optimism',
+    api_type: 'rss',
+    poll_interval_s: 1800,
+    default_category: 'UPGRADE',
+  },
+  {
+    id: 'github.com/base/node',
+    display_name: 'Base Node (L2 Node)',
+    base_url: 'https://github.com/base/node',
+    api_type: 'rss',
+    poll_interval_s: 1800,
+    default_category: 'UPGRADE',
+  },
+  {
+    id: 'github.com/matter-labs/zksync-era',
+    display_name: 'zkSync Era (L2 Node)',
+    base_url: 'https://github.com/matter-labs/zksync-era',
+    api_type: 'rss',
+    poll_interval_s: 1800,
+    default_category: 'UPGRADE',
+  },
+  {
+    id: 'github.com/scroll-tech/scroll',
+    display_name: 'Scroll (L2 Node)',
+    base_url: 'https://github.com/scroll-tech/scroll',
+    api_type: 'rss',
+    poll_interval_s: 1800,
+    default_category: 'UPGRADE',
+  },
+  {
+    id: 'github.com/Consensys/linea-monorepo',
+    display_name: 'Linea (L2 Node)',
+    base_url: 'https://github.com/Consensys/linea-monorepo',
+    api_type: 'rss',
+    poll_interval_s: 1800,
+    default_category: 'UPGRADE',
+  },
+  {
+    id: 'github.com/starkware-libs/cairo',
+    display_name: 'Cairo (Starknet Language)',
+    base_url: 'https://github.com/starkware-libs/cairo',
+    api_type: 'rss',
+    poll_interval_s: 1800,
+    default_category: 'UPGRADE',
+  },
+  {
+    id: 'github.com/ethereum/consensus-specs',
+    display_name: 'Consensus Specs',
+    base_url: 'https://github.com/ethereum/consensus-specs',
+    api_type: 'rss',
+    poll_interval_s: 1800,
+    default_category: 'EIP_ERC',
+  },
+  {
+    id: 'github.com/ethereum/execution-specs',
+    display_name: 'Execution Specs',
+    base_url: 'https://github.com/ethereum/execution-specs',
+    api_type: 'rss',
+    poll_interval_s: 1800,
+    default_category: 'EIP_ERC',
+  },
 ];
 
 // ── Tier 6: On-Chain Metrics (DefiLlama REST API) ───────────────────
