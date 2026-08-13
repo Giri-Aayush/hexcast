@@ -50,6 +50,22 @@ export const auth = betterAuth({
     enabled: true,
   },
 
+  // Google sign-in activates only when both halves of the OAuth credential are set,
+  // same gate pattern as the infra plugins above — a half-configured env stays a
+  // clean no-op instead of erroring on every social request. The client button is
+  // behind NEXT_PUBLIC_GOOGLE_AUTH_ENABLED, so keep the three in sync. Google's
+  // authorized redirect URI is <origin>/api/auth/callback/google.
+  ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+    ? {
+        socialProviders: {
+          google: {
+            clientId: process.env.GOOGLE_CLIENT_ID,
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+          },
+        },
+      }
+    : {}),
+
   advanced: {
     ipAddress: {
       // We deploy behind Netlify's CDN, so every request's TCP peer is Netlify —
