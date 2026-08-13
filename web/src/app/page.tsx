@@ -421,13 +421,13 @@ export default function LandingPage() {
       <div className="hxl-cta">
         <div className="hxl-cta-block">
           <div className="hxl-cta-copy">
-            <p className="hxl-cta-eyebrow">INSTALLABLE · OFFLINE · NO ACCOUNT TO READ</p>
+            <p className="hxl-cta-eyebrow">FREE TO JOIN · INSTALLABLE · WORKS OFFLINE</p>
             <h2 className="hxl-cta-heading">
               Add it to your home screen and read the last 24 hours on the train.
             </h2>
             <p className="hxl-cta-body">
-              Five cards a day without an account. Sign in to save across devices,
-              keep your filters, and vote on accuracy.
+              Create a free account to read the feed, save cards across devices, keep
+              your filters, and vote on accuracy.
             </p>
           </div>
           <div className="hxl-cta-actions">
