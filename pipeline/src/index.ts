@@ -127,11 +127,29 @@ async function main() {
         const results = await fetcher.fetch();
         logger.info(`Fetched ${results.length} items from ${source.id}`);
 
+        // One malformed item must not cost the rest of the source. cryptocurrency.cv
+        // renamed its `url` field to `link`, so every item arrived with no canonical URL,
+        // the first insert violated the NOT NULL constraint, and the throw unwound the
+        // whole loop — discarding every remaining item from that source and reporting it
+        // as a fetch failure. A missing canonical URL is a property of one item; skipping
+        // it keeps the other 49.
+        let malformed = 0;
         for (const result of results) {
+          if (!result.canonicalUrl) {
+            malformed++;
+            continue;
+          }
           await insertRawItem(result);
         }
 
-        totalFetched += results.length;
+        if (malformed > 0) {
+          logger.warn(
+            `${source.id}: skipped ${malformed}/${results.length} items with no canonical URL ` +
+              `— the source's response shape has probably changed`,
+          );
+        }
+
+        totalFetched += results.length - malformed;
         await updateLastPolledAt(source.id);
       } catch (error) {
         logger.error(`Failed to fetch ${source.id}:`, error);

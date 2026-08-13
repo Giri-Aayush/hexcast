@@ -5,12 +5,29 @@ import { delay } from '../utils/delay.js';
 
 // ── Free Crypto News API types ────────────────────────────────────────
 
+/**
+ * The API renamed its fields and nothing told us.
+ *
+ * It now returns `link`, `pubDate` and `description` where it used to return `url`,
+ * `published_at` and `summary`. Reading the old names produced items with an undefined
+ * canonical URL, which failed the NOT NULL constraint on insert and — before the guard in
+ * index.ts — took the rest of the source down with it. The source had been contributing
+ * nothing for an unknown period, visible only as one error line per run.
+ *
+ * Both spellings are accepted rather than just the new ones: the endpoint is erratic (one
+ * probe returned 3 articles against a claimed totalCount of 2804, four consecutive probes
+ * a minute later returned 0 with totalCount 0), so it is not worth assuming which shape
+ * comes back on any given call.
+ */
 interface CryptoNewsArticle {
   title: string;
   source: string;
-  url: string;
-  published_at: string;
+  url?: string;
+  link?: string;
+  published_at?: string;
+  pubDate?: string;
   summary?: string;
+  description?: string;
   sentiment?: string;
 }
 
@@ -53,19 +70,24 @@ export class CryptoNewsFetcher extends BaseFetcher {
         for (const article of data.articles) {
           if (results.length >= MAX_ITEMS) break;
 
-          const publishedAt = article.published_at
-            ? new Date(article.published_at)
-            : null;
+          const published = article.published_at ?? article.pubDate;
+          const publishedAt = published ? new Date(published) : null;
 
           if (publishedAt && !this.isAfterLastPoll(publishedAt)) continue;
 
           allOld = false;
 
+          const canonicalUrl = article.url ?? article.link;
+          if (!canonicalUrl) {
+            logger.warn(`${this.config.sourceId}: article "${article.title}" has no url or link, skipping`);
+            continue;
+          }
+
           results.push({
             sourceId: this.config.sourceId,
-            canonicalUrl: article.url,
+            canonicalUrl,
             rawTitle: article.title,
-            rawText: article.summary || article.title,
+            rawText: article.description || article.summary || article.title,
             rawMetadata: {
               source_name: article.source,
               sentiment: article.sentiment ?? null,
