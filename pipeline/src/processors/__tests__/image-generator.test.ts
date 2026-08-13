@@ -59,9 +59,7 @@ describe('generateCardImage', () => {
   });
 
   it('rejects an implausibly small payload instead of storing it', async () => {
-    respondWith({
-      choices: [{ message: { images: [{ image_url: { url: 'data:image/png;base64,AAAA' } }] } }],
-    });
+    respondWith({ data: [{ b64_json: 'AAAA', media_type: 'image/png' }] });
 
     const result = await generateCardImage('SECURITY', [], { apiKey: 'k' });
 
@@ -99,10 +97,12 @@ describe('generateCardImage', () => {
     await generateCardImage('SECURITY', ['fracture'], { apiKey: 'k' });
 
     const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
-    const prompt = body.messages[0].content as string;
+    const prompt = body.prompt as string;
     expect(prompt).toContain('fracture');
     expect(prompt).toContain('No text, no letters');
-    expect(body.modalities).toEqual(['image', 'text']);
+    // No seed: the parameter is accepted and ignored, so sending one would advertise a
+    // determinism this path does not have.
+    expect(body).not.toHaveProperty('seed');
   });
 });
 

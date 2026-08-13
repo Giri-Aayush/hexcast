@@ -6,22 +6,41 @@ import { buildImagePrompt } from './image-prompt.js';
 /**
  * Cover art for a card.
  *
- * Only high-priority cards get one. At a measured $0.0343 per image against $0.00017 for
- * the summary, an image costs about 200x what the news itself costs to produce, so this
- * runs on the ~18% of cards the pipeline already treats as most important rather than on
- * everything.
+ * Only high-priority cards get one. At a measured $0.015 per image against $0.00017 for the
+ * summary, an image costs about 90x what the news itself costs to produce, so this runs on
+ * the ~18% of cards the pipeline already treats as most important rather than on everything.
  *
- * Note the API shape. OpenRouter has no dedicated images endpoint for these models: it is
- * chat/completions with modalities, and the image comes back as a base64 data URL inside
- * the message. There is also no seed, no aspect_ratio and no resolution parameter — the
- * ratio has to be asked for in the prompt and honoured approximately, and nothing here is
- * reproducible. Worth knowing before anyone plans on regenerating an identical image.
+ * NOTHING HERE IS REPRODUCIBLE. `seed` is accepted and ignored — two calls with the same
+ * prompt and the same seed returned different bytes (sha256 2da426b4… vs ada48347…). That
+ * is the worst kind of not-working, because nothing errors. Do not plan on regenerating an
+ * identical image; there is no way to get one.
  */
 
-/** Cheapest of the three that work, and 2-16x faster than the alternatives. */
-const DEFAULT_IMAGE_MODEL = 'google/gemini-3.1-flash-lite-image';
+/**
+ * Measured on the response's own usage.cost field, three separate calls, all exactly
+ * $0.015 — against $0.0343 for google/gemini-3.1-flash-lite-image. 2.3x cheaper for
+ * indistinguishable output, which halves the only line item in this project that costs real
+ * money.
+ *
+ * It is 11.6s against gemini's 4.6s. At ~2.3 images a day that difference is invisible, and
+ * it is not on the reader's critical path — the card is already written and served by the
+ * time this runs.
+ *
+ * Both models return 1376x768 (ratio 1.7917), so despite `aspect_ratio` being accepted here
+ * and absent on the chat path, neither gives a true 16:9 and there is no dimension
+ * advantage between them.
+ */
+const DEFAULT_IMAGE_MODEL = 'krea/krea-2-medium-turbo';
 
-const IMAGE_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
+/**
+ * The dedicated images surface, NOT chat/completions.
+ *
+ * Worth recording how this was found, because it cost a wrong claim: krea is absent from
+ * /models AND from chat/completions, and I concluded from those two that the model did not
+ * exist. It does — this third surface serves it. Checking two places is not the same as
+ * checking everywhere.
+ */
+const IMAGE_ENDPOINT = 'https://openrouter.ai/api/v1/images';
 
 /**
  * Why an image failed, as a class rather than the provider's prose.
@@ -53,26 +72,29 @@ export function classifyImageError(status: number | undefined, body: string): Im
   return 'unknown';
 }
 
-/**
- * Pull the PNG out of a chat completion.
- *
- * The model can answer with text instead of an image — a refusal, usually — and that comes
- * back as a normal 200. Treating a missing image as success would store an empty file and
- * mark the card done, so it is classified as a refusal here rather than crashing later.
- */
-function extractPng(payload: unknown): { png?: Buffer; detail?: string } {
-  const message = (payload as { choices?: Array<{ message?: Record<string, unknown> }> })
-    ?.choices?.[0]?.message;
-  const images = message?.images as Array<{ image_url?: { url?: string } }> | undefined;
-  const url = images?.[0]?.image_url?.url;
+interface ImagesResponse {
+  data?: Array<{ b64_json?: string; media_type?: string }>;
+  usage?: { cost?: number };
+  /** Present when the model answered in prose instead of drawing — usually a refusal. */
+  choices?: Array<{ message?: { content?: string; refusal?: string } }>;
+}
 
-  if (!url) {
-    const text = typeof message?.content === 'string' ? message.content : '';
-    const refusal = typeof message?.refusal === 'string' ? message.refusal : '';
-    return { detail: `no image in response: ${(refusal || text || 'empty').slice(0, 200)}` };
+/**
+ * Pull the PNG out of the response.
+ *
+ * A model can answer with words instead of an image and still return 200 — a refusal reads
+ * as success at the HTTP layer. Treating a missing image as success would store an empty
+ * object and mark the card done for its whole 90-day life, so it is classified here.
+ */
+function extractPng(payload: ImagesResponse): { png?: Buffer; detail?: string } {
+  const base64 = payload.data?.[0]?.b64_json;
+
+  if (!base64) {
+    const message = payload.choices?.[0]?.message;
+    const prose = message?.refusal || message?.content || 'empty';
+    return { detail: `no image in response: ${prose.slice(0, 200)}` };
   }
 
-  const base64 = url.startsWith('data:') ? url.slice(url.indexOf(',') + 1) : url;
   const png = Buffer.from(base64, 'base64');
 
   // A handful of bytes is not an image. Cheap to check, and it stops a truncated response
@@ -93,7 +115,8 @@ function extractPng(payload: unknown): { png?: Buffer; detail?: string } {
  *
  * A blind inset is the only guard that does not depend on the model cooperating or on how
  * the web side happens to crop today. 8% removed that signature with room to spare and
- * costs nothing.
+ * costs nothing. Kept after the model switch: text artifacts are a property of image models
+ * in general, not of the one that happened to produce that signature.
  *
  * BE HONEST ABOUT WHAT THIS IS: a mitigation, not a fix. Marks cluster at the extreme
  * edges, so most are caught, but a signature drawn further in survives — and no cheap
@@ -139,8 +162,11 @@ export async function generateCardImage(
       },
       body: JSON.stringify({
         model,
-        modalities: ['image', 'text'],
-        messages: [{ role: 'user', content: prompt }],
+        prompt,
+        aspect_ratio: '16:9',
+        resolution: '1K',
+        // No seed. It is accepted and ignored, and passing one would imply a determinism
+        // this path cannot deliver.
       }),
     });
 
@@ -150,7 +176,7 @@ export async function generateCardImage(
       return { error, detail: `${response.status}: ${body.slice(0, 200)}` };
     }
 
-    const payload = (await response.json()) as { usage?: { cost?: number } };
+    const payload = (await response.json()) as ImagesResponse;
     const { png, detail } = extractPng(payload);
 
     if (!png) return { error: 'refused', detail };

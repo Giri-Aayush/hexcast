@@ -10,9 +10,9 @@
  *   npx tsx --env-file-if-exists=../.env scripts/backfill-card-images.ts --retry --write
  *   npx tsx --env-file-if-exists=../.env scripts/backfill-card-images.ts --write --limit=10
  *
- * Preview by default and it prints the bill before spending anything, because at $0.0343
- * an image this is the only script in the repo where a careless run costs real money —
- * every card in the table would be about $13.
+ * Preview by default and it prints the bill before spending anything, because this is the
+ * only script in the repo where a careless run costs real money — every card in the table
+ * would be about $5.60 rather than the $1 this is scoped to.
  *
  * Never retries a 'refused': that is a statement about the prompt, so running it again
  * unchanged pays for the same answer. Fix the prompt, then use --retry --include-refused.
@@ -23,7 +23,8 @@ import { loadConfig } from '../src/config.js';
 import { HIGH_PRIORITY_CATEGORIES } from '../src/processors/priority.js';
 import { generateImageFor } from '../src/processors/card-image-step.js';
 
-const COST_PER_IMAGE = 0.0343;
+/** Measured on the response's own usage.cost field, three calls, all exactly this. */
+const COST_PER_IMAGE = 0.015;
 
 const config = loadConfig();
 const db = createClient(config.supabaseUrl, config.supabaseServiceKey);
