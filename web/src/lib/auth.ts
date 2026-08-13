@@ -52,9 +52,10 @@ export const auth = betterAuth({
 
   // Google sign-in activates only when both halves of the OAuth credential are set,
   // same gate pattern as the infra plugins above — a half-configured env stays a
-  // clean no-op instead of erroring on every social request. The client button is
-  // behind NEXT_PUBLIC_GOOGLE_AUTH_ENABLED, so keep the three in sync. Google's
-  // authorized redirect URI is <origin>/api/auth/callback/google.
+  // clean no-op instead of erroring on every social request. The sign-in page reads
+  // the same two vars at request time to decide whether to show the button, so the UI
+  // and the backend never disagree. Authorized redirect URI is
+  // <origin>/api/auth/callback/google.
   ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
     ? {
         socialProviders: {
@@ -65,6 +66,19 @@ export const auth = betterAuth({
         },
       }
     : {}),
+
+  // One person, one account, whichever door they use. Without this, signing in with
+  // Google when an email/password account already exists for that address fails with
+  // `account_not_linked` — Better Auth's anti-takeover default, which refuses to attach
+  // a social login to a pre-existing account. Google verifies its emails, so it's a
+  // trusted provider: a Google sign-in links to the existing user with the same email
+  // instead of bouncing them to /?error=account_not_linked.
+  account: {
+    accountLinking: {
+      enabled: true,
+      trustedProviders: ['google'],
+    },
+  },
 
   advanced: {
     ipAddress: {
