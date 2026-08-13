@@ -11,6 +11,7 @@
  */
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useRouter } from 'next/navigation';
 import '@/styles/landing.css';
 import { useSourceCount } from '@/lib/use-source-count';
 
@@ -222,16 +223,22 @@ function DigitCounter() {
 /* ── Email signup ─────────────────────────────────────────────────────── */
 
 function EmailSignup() {
+  const router = useRouter();
   const [email, setEmail] = useState('');
-  const [status, setStatus] = useState<'idle' | 'invalid' | 'success'>('idle');
+  const [invalid, setInvalid] = useState(false);
 
+  // This box used to fake a "digest confirmed" message and do nothing — there is no
+  // digest product, and reading the feed needs a real account anyway. So it now just
+  // carries the address into the actual sign-up: /sign-in prefills it and asks for a
+  // password. One field less to retype, and the promise it makes is true.
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!EMAIL_RE.test(email.trim())) {
-      setStatus('invalid');
+    const value = email.trim();
+    if (!EMAIL_RE.test(value)) {
+      setInvalid(true);
       return;
     }
-    setStatus('success');
+    router.push(`/sign-in?mode=up&email=${encodeURIComponent(value)}`);
   }
 
   return (
@@ -242,24 +249,18 @@ function EmailSignup() {
           type="email"
           placeholder="you@protocol.dev"
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={(e) => {
+            setEmail(e.target.value);
+            if (invalid) setInvalid(false);
+          }}
           aria-label="Email address"
         />
         <button type="submit" className="hxl-signup-submit">
-          {status === 'success' ? "You're in" : 'Sign up'}
+          Sign up
         </button>
       </div>
-      <p
-        className={
-          status === 'invalid'
-            ? 'hxl-signup-note hxl-signup-note-error'
-            : status === 'success'
-              ? 'hxl-signup-note hxl-signup-note-success'
-              : 'hxl-signup-note'
-        }
-      >
-        {status === 'invalid' && 'ENTER A VALID EMAIL'}
-        {status === 'success' && '08:00 DIGEST CONFIRMED. CHECK YOUR INBOX'}
+      <p className={invalid ? 'hxl-signup-note hxl-signup-note-error' : 'hxl-signup-note'}>
+        {invalid && 'ENTER A VALID EMAIL'}
       </p>
     </form>
   );

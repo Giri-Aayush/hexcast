@@ -1055,6 +1055,53 @@
   text-wrap: pretty;
 }
 
+/* Google is the top, one-tap option on the dark wall: a light slab with the mark,
+   so it reads as the easy path before the email form. */
+.hx-wall-google {
+  width: 100%;
+  min-height: var(--touch-min);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--ink);
+  font: 500 13px/1 var(--font-sans);
+  cursor: pointer;
+}
+
+.hx-wall-google:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.hx-wall-google:focus-visible {
+  outline: 2px solid var(--surface);
+  outline-offset: 2px;
+}
+
+/* "or" between the Google slab and the email form: a centred label with a hairline
+   running through it. */
+.hx-wall-or {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 14px 0;
+  font: 400 9.5px/1 var(--font-mono);
+  letter-spacing: 0.14em;
+  color: #9a9aa4;
+}
+
+.hx-wall-or::before,
+.hx-wall-or::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.14);
+}
+
 .hx-wall-form {
   display: flex;
   flex-direction: column;
