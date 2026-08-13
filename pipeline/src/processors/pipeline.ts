@@ -227,7 +227,7 @@ export async function processRawItems(
         return;
       }
 
-      const { headline, summary, signals } = await summarize(normalized.fullText, normalized.title);
+      const { headline, summary, stats, signals } = await summarize(normalized.fullText, normalized.title);
 
       // 7. Quality score
       const quality = scoreQualityBreakdown({
@@ -263,6 +263,7 @@ export async function processRawItems(
         qualityScore,
         quality,
         signals,
+        stats,
       });
 
       // 9. Queue high-priority items (SECURITY / UPGRADE)
