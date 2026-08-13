@@ -1,34 +1,62 @@
 import { describe, it, expect } from 'vitest';
 import { buildImagePrompt, scrubMotifs, CATEGORY_STYLES, MOTIF_PROMPT_EXAMPLES } from '../image-prompt.js';
 
+/**
+ * Every motif the live dev run actually produced. The old allow list rejected all 24, a 0%
+ * pass rate, so every image fell back to category mood and the story-related art the feature
+ * exists for did not happen. Two of these SHOULD be dropped and the rest kept.
+ */
+const OBSERVED_MOTIFS = [
+  'severed conduit', 'clear horizon', 'lingering drag', 'compressed wait',
+  'stitched restart', 'patched seam', 'quiet repair', 'lightened load',
+  'pre-warmed flow', 'layered checkpoint', 'faster fault merging', 'checked integrity',
+  'quiet paranoia', 'hardened seam', 'drained pocket', 'quiet patch',
+  'patchwork tension', 'shrink threshold', 'clean seam', 'scaling strain',
+  'shifted weight', 'layered capacity',
+  // the two that must not survive
+  'steady hand', 'grid of mirrors',
+];
+
 describe('scrubMotifs', () => {
-  it('accepts every phrase the extraction prompt teaches', () => {
-    // The filter and the prompt must agree. They did not at first: the prompt demonstrated
-    // "held tension" and "slow erosion" while the vocabulary had only "tension" and
-    // "erosion", so the model was being taught to produce output that was silently thrown
-    // away — and the symptom is "the filter rejects everything", which reads as a model
-    // failure rather than an internal contradiction. This test is what stops it recurring
-    // the next time someone adds an example.
-    for (const example of MOTIF_PROMPT_EXAMPLES) {
-      expect(scrubMotifs([example]), example).toEqual([example]);
+  it('keeps the abstract motifs the model really produces', () => {
+    // The regression that matters. Each of these was rejected by the allow list and each is
+    // exactly what the contract asked for: abstract, no proper noun, no figure, no object.
+    for (const motif of OBSERVED_MOTIFS.slice(0, 22)) {
+      expect(scrubMotifs([motif]), motif).toEqual([motif]);
     }
   });
 
-  it('keeps abstract form and motion words', () => {
-    expect(scrubMotifs(['fracture', 'fault line', 'held tension'])).toEqual([
-      'fracture',
-      'fault line',
-      'held tension',
+  it('drops motifs naming something a model would draw literally', () => {
+    // A hand and a mirror are things, not textures. These are the only two of the 24
+    // observed motifs worth losing, and the reject list loses exactly them.
+    expect(scrubMotifs(['steady hand'])).toEqual([]);
+    expect(scrubMotifs(['grid of mirrors'])).toEqual([]);
+    expect(scrubMotifs(['locked vault', 'coin stack', 'server rack'])).toEqual([]);
+  });
+
+  it('drops a proper noun taken from the summary it was extracted from', () => {
+    // The per-card rule, and the reason a reject list is now safe: the entity we must avoid
+    // is named in the card's own text, so no global list has to anticipate it. Works for a
+    // protocol that launched this morning.
+    const summary = 'Nethermind 1.39.3 patches an ABI regression affecting Blorptron nodes.';
+
+    expect(scrubMotifs(['nethermind seam', 'blorptron drift', 'quiet patch'], summary)).toEqual([
+      'quiet patch',
     ]);
   });
 
-  it('drops a protocol name the reject list would never have contained', () => {
-    // The whole reason this is an allow list. A reject list stops the names we thought of
-    // and passes every one we did not — and a protocol that launched this morning is
-    // exactly the case we cannot enumerate in advance.
-    expect(scrubMotifs(['fracture', 'Uniswap liquidity', 'flowing curve'])).toEqual([
-      'fracture',
-      'flowing curve',
+  it('does not reject a motif because a sentence happened to start with that word', () => {
+    // Position matters. A blanket capitalisation rule would drop "faster fault merging"
+    // whenever a summary opened with "Faster", which is why the first word of each sentence
+    // is skipped.
+    const summary = 'Faster block times ship in the upgrade. Scaling continues.';
+
+    expect(scrubMotifs(['faster fault merging'], summary)).toEqual(['faster fault merging']);
+  });
+
+  it('drops well-known chains and tokens even when absent from the summary', () => {
+    expect(scrubMotifs(['ethereum flow', 'bitcoin drift', 'quiet seam'], 'No names here.')).toEqual([
+      'quiet seam',
     ]);
   });
 
@@ -36,18 +64,8 @@ describe('scrubMotifs', () => {
     expect(scrubMotifs(['fracture', '3 layers', 'v2 cascade'])).toEqual(['fracture']);
   });
 
-  it('drops named physical objects even though they sound visual', () => {
-    // "hardware wallet", "exchange", "padlock" are depictable things. An image containing
-    // one is asserting something about the story that no check downstream could catch.
-    expect(scrubMotifs(['padlock', 'exchange floor', 'server rack', 'quiet threshold'])).toEqual([
-      'quiet threshold',
-    ]);
-  });
-
   it('caps at three motifs', () => {
-    expect(
-      scrubMotifs(['fracture', 'flow', 'tension', 'balance', 'erosion']),
-    ).toHaveLength(3);
+    expect(scrubMotifs(['fracture', 'flow', 'tension', 'balance', 'erosion'])).toHaveLength(3);
   });
 
   it('drops duplicates and normalizes case', () => {
@@ -55,12 +73,17 @@ describe('scrubMotifs', () => {
   });
 
   it('drops an overlong phrase', () => {
-    // A five-word phrase is a sentence, and a sentence is where narrative sneaks back in.
+    // Five words is a sentence, and a sentence is where narrative sneaks back in.
     expect(scrubMotifs(['a slow and quiet erosion of order', 'fracture'])).toEqual(['fracture']);
   });
 
-  it('returns nothing when every motif is rejected', () => {
-    expect(scrubMotifs(['Ethereum', 'Lido staking', '$1.5B outflow'])).toEqual([]);
+  it('accepts every phrase the extraction prompt teaches', () => {
+    // The prompt and the filter must agree. They did not under the allow list — it
+    // demonstrated "held tension" while the vocabulary had only "tension" — so the model was
+    // being trained to produce output that was silently discarded.
+    for (const example of MOTIF_PROMPT_EXAMPLES) {
+      expect(scrubMotifs([example]), example).toEqual([example]);
+    }
   });
 });
 

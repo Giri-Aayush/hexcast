@@ -18,7 +18,7 @@ const SYSTEM_PROMPT = `You turn a news summary into abstract visual motifs for c
 Return a JSON array of 2-3 short phrases. Each phrase is 1-3 words describing FORM, MOTION,
 TEXTURE or MOOD only.
 
-Examples of the register: ${MOTIF_PROMPT_EXAMPLES.map((e) => `"${e}"`).join(', ')}.
+Examples of the register: ${MOTIF_PROMPT_EXAMPLES.map((e: string) => `"${e}"`).join(', ')}.
 
 HARD RULES:
 - NEVER name a company, protocol, product, chain, token, person or place.
@@ -69,7 +69,7 @@ export async function extractMotifs(
   }
 
   const proposed = parsePhrases(raw);
-  const kept = scrubMotifs(proposed);
+  const kept = scrubMotifs(proposed, summary);
 
   if (proposed.length > 0 && kept.length === 0) {
     logger.warn(
