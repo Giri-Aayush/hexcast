@@ -8,16 +8,14 @@ vi.mock('@/lib/server-auth', () => ({
 }));
 
 vi.mock('@/lib/queries', () => ({
-  getCards: vi.fn(),
   getPersonalizedCards: vi.fn(),
 }));
 
 import { GET } from '../route';
 import { auth } from '@/lib/server-auth';
-import { getCards, getPersonalizedCards } from '@/lib/queries';
+import { getPersonalizedCards } from '@/lib/queries';
 
 const mockAuth = vi.mocked(auth);
-const mockGetCards = vi.mocked(getCards);
 const mockGetPersonalizedCards = vi.mocked(getPersonalizedCards);
 
 // --- Helpers ---
@@ -33,34 +31,28 @@ function req(url: string, opts?: { method?: string; body?: unknown }) {
 }
 
 // --- Tests ---
+//
+// The feed is gated: /api/cards serves the authenticated, personalized feed and
+// nothing else. The anonymous branch (getCards) was removed, so a signed-out caller
+// gets 401 — that's the API half of "nobody sees the feed without signing up".
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockAuth.mockResolvedValue({ userId: null } as any);
-  mockGetCards.mockResolvedValue([]);
+  // Default to authenticated; the 401 case sets userId: null explicitly.
+  mockAuth.mockResolvedValue({ userId: 'user_123' } as any);
   mockGetPersonalizedCards.mockResolvedValue({ cards: [], unseenCount: 0 } as any);
 });
 
 describe('GET /api/cards', () => {
-  it('returns anonymous feed when not authenticated', async () => {
-    const cards = [{ id: '1', headline: 'test' }];
-    mockGetCards.mockResolvedValue(cards as any);
+  it('returns 401 when not authenticated, without touching the DB', async () => {
+    mockAuth.mockResolvedValue({ userId: null } as any);
 
     const res = await GET(req('http://localhost:3000/api/cards'));
-    const json = await res.json();
-
-    expect(mockGetCards).toHaveBeenCalledWith({
-      cursor: undefined,
-      limit: 20,
-      category: undefined,
-      source: undefined,
-    });
-    expect(json.cards).toEqual(cards);
-    expect(json.hasMore).toBe(false);
+    expect(res.status).toBe(401);
+    expect(mockGetPersonalizedCards).not.toHaveBeenCalled();
   });
 
   it('returns personalized feed when authenticated', async () => {
-    mockAuth.mockResolvedValue({ userId: 'user_123' } as any);
     const cards = [{ id: '1', headline: 'test' }];
     mockGetPersonalizedCards.mockResolvedValue({ cards, unseenCount: 5 } as any);
 
@@ -79,45 +71,36 @@ describe('GET /api/cards', () => {
   });
 
   it('clamps limit to max 50', async () => {
-    const res = await GET(req('http://localhost:3000/api/cards?limit=100'));
-    await res.json();
+    await GET(req('http://localhost:3000/api/cards?limit=100'));
 
-    expect(mockGetCards).toHaveBeenCalledWith(
+    expect(mockGetPersonalizedCards).toHaveBeenCalledWith(
       expect.objectContaining({ limit: 50 }),
     );
   });
 
   it('passes category filter', async () => {
-    const res = await GET(req('http://localhost:3000/api/cards?category=defi'));
-    await res.json();
+    await GET(req('http://localhost:3000/api/cards?category=defi'));
 
-    expect(mockGetCards).toHaveBeenCalledWith(
+    expect(mockGetPersonalizedCards).toHaveBeenCalledWith(
       expect.objectContaining({ category: 'defi' }),
     );
   });
 
-  it('passes source filter', async () => {
-    const res = await GET(req('http://localhost:3000/api/cards?source=coindesk'));
-    await res.json();
-
-    expect(mockGetCards).toHaveBeenCalledWith(
-      expect.objectContaining({ source: 'coindesk' }),
+  it('passes the composite cursor', async () => {
+    await GET(
+      req('http://localhost:3000/api/cards?cursor_seen=true&cursor_published=2024-01-01T00:00:00Z'),
     );
-  });
 
-  it('passes cursor for anonymous feed', async () => {
-    const res = await GET(
-      req('http://localhost:3000/api/cards?cursor=2024-01-01T00:00:00Z'),
-    );
-    await res.json();
-
-    expect(mockGetCards).toHaveBeenCalledWith(
-      expect.objectContaining({ cursor: '2024-01-01T00:00:00Z' }),
+    expect(mockGetPersonalizedCards).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cursorSeen: true,
+        cursorPublished: '2024-01-01T00:00:00Z',
+      }),
     );
   });
 
   it('returns 500 on query error', async () => {
-    mockGetCards.mockRejectedValue(new Error('DB failure'));
+    mockGetPersonalizedCards.mockRejectedValue(new Error('DB failure'));
 
     const res = await GET(req('http://localhost:3000/api/cards'));
     expect(res.status).toBe(500);
@@ -127,40 +110,38 @@ describe('GET /api/cards', () => {
   });
 
   it('handles limit=abc (non-numeric) — NaN propagates through Math.min', async () => {
-    const res = await GET(req('http://localhost:3000/api/cards?limit=abc'));
-    await res.json();
+    await GET(req('http://localhost:3000/api/cards?limit=abc'));
 
     // Number('abc') = NaN, Math.min(NaN, 50) = NaN
-    expect(mockGetCards).toHaveBeenCalledWith(
+    expect(mockGetPersonalizedCards).toHaveBeenCalledWith(
       expect.objectContaining({ limit: NaN }),
     );
   });
 
   it('handles limit=0 — returns empty cards', async () => {
-    mockGetCards.mockResolvedValue([]);
+    mockGetPersonalizedCards.mockResolvedValue({ cards: [], unseenCount: 0 } as any);
 
     const res = await GET(req('http://localhost:3000/api/cards?limit=0'));
     const json = await res.json();
 
-    expect(mockGetCards).toHaveBeenCalledWith(
+    expect(mockGetPersonalizedCards).toHaveBeenCalledWith(
       expect.objectContaining({ limit: 0 }),
     );
     expect(json.cards).toEqual([]);
   });
 
   it('handles limit=-5 — negative limit passes through Math.min', async () => {
-    const res = await GET(req('http://localhost:3000/api/cards?limit=-5'));
-    await res.json();
+    await GET(req('http://localhost:3000/api/cards?limit=-5'));
 
     // Math.min(-5, 50) = -5
-    expect(mockGetCards).toHaveBeenCalledWith(
+    expect(mockGetPersonalizedCards).toHaveBeenCalledWith(
       expect.objectContaining({ limit: -5 }),
     );
   });
 
   it('hasMore is true when exactly limit cards returned', async () => {
     const cards = Array.from({ length: 20 }, (_, i) => ({ id: String(i), headline: `card ${i}` }));
-    mockGetCards.mockResolvedValue(cards as any);
+    mockGetPersonalizedCards.mockResolvedValue({ cards, unseenCount: 0 } as any);
 
     const res = await GET(req('http://localhost:3000/api/cards'));
     const json = await res.json();
@@ -171,7 +152,7 @@ describe('GET /api/cards', () => {
 
   it('hasMore is false when fewer than limit cards returned', async () => {
     const cards = [{ id: '1', headline: 'card 1' }];
-    mockGetCards.mockResolvedValue(cards as any);
+    mockGetPersonalizedCards.mockResolvedValue({ cards, unseenCount: 0 } as any);
 
     const res = await GET(req('http://localhost:3000/api/cards'));
     const json = await res.json();

@@ -643,6 +643,14 @@
 }
 
 /* ── You page ─────────────────────────────────────────────────────────── */
+/* Replay-tour and Sign-out sit on one row; each keeps its own hit target and they
+   wrap on a narrow screen rather than squashing below the tap minimum. */
+.hx-you-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .hx-you-id {
   display: flex;
   align-items: center;

@@ -263,6 +263,7 @@ export const Card = memo(function Card({ card, position }: CardProps) {
       <div className="hx-actions">
         <button
           className="hx-ctl"
+          data-tour="save"
           onClick={handleSave}
           aria-pressed={saved}
           aria-label={saved ? 'Remove from saved' : 'Save card'}
