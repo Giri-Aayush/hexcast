@@ -107,6 +107,14 @@ export const MOTIF_PROMPT_EXAMPLES = [
   'quiet threshold',
   'balance',
   'weighed order',
+  // Positive-direction examples, added after a latency IMPROVEMENT came back drawn as a
+  // fracture. The register was only ever demonstrated with neutral and negative phrases, so
+  // the model had nothing to imitate when the news was good.
+  'quickened flow',
+  'eased passage',
+  'smoothed seam',
+  'sealing',
+  'settled edge',
 ];
 
 const MAX_MOTIF_WORDS = 4;
