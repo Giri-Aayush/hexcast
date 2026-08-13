@@ -46,9 +46,11 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  width: 100%;
   max-width: 1180px;
   margin: 0 auto;
   padding: 26px 28px;
+  flex: none;
 }
 
 .hxl-wordmark {
@@ -91,14 +93,41 @@ a.hxl-btn-pill {
 
 /* ── Hero ───────────────────────────────────────────────────────────── */
 
+/* Header + hero together are the first screen. min-height guarantees the
+   pair never come in shorter than one screen; the hero itself grows to fill
+   whatever's left after the header and holds the deck at its own bottom
+   edge, so the deck always lands at the bottom of the first screen instead
+   of trailing off after however tall the hero content happens to be. */
+.hxl-firstscreen {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
 .hxl-hero {
+  flex: 1 0 auto;
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
   max-width: 1180px;
+  width: 100%;
   margin: 0 auto;
-  padding: 34px 28px 0;
+  padding: clamp(12px, 3.4vh, 34px) 28px 0;
+}
+
+/* Everything above the deck. It grows to fill the hero and centers its
+   contents vertically, so on tall screens the copy sits mid-hero (matching
+   the old look) and on short screens it hugs the deck instead of pushing it
+   down — the deck's position, not this block's, is what must stay fixed. */
+.hxl-hero-content {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 0;
 }
 
 .hxl-pill {
@@ -109,7 +138,8 @@ a.hxl-btn-pill {
   padding: 0 14px;
   border-radius: 15px;
   border: 1px solid rgba(16, 16, 20, 0.14);
-  margin-bottom: 30px;
+  margin-bottom: clamp(10px, 3vh, 30px);
+  flex: none;
 }
 
 .hxl-pill-dot {
@@ -131,21 +161,26 @@ a.hxl-btn-pill {
 .hxl-counter {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: clamp(3px, 0.6vh, 5px);
   background: var(--ink);
   border-radius: 16px;
-  padding: 11px;
-  margin-bottom: 10px;
+  padding: clamp(6px, 1.4vh, 11px);
+  margin-bottom: clamp(6px, 1.2vh, 10px);
+  flex: none;
 }
 
 .hxl-digit {
-  width: 52px;
-  height: 70px;
+  /* Dual-constrained like the H1 below: vh keeps it from stacking too tall
+     on short screens, vw keeps it from looking oversized on narrow-but-tall
+     phones (500x932 has plenty of vh to spare but only 500px to spread
+     five digit tiles across). */
+  width: clamp(30px, min(9vw, 7vh), 52px);
+  height: clamp(40px, min(12vw, 9.5vh), 70px);
   border-radius: 9px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font: 500 40px/1 var(--font-mono);
+  font: 500 clamp(20px, min(7vw, 5.4vh), 40px) / 1 var(--font-mono);
   letter-spacing: -0.04em;
   color: var(--ink);
   background: var(--surface);
@@ -161,18 +196,24 @@ a.hxl-btn-pill {
   font: 400 10.5px/1 var(--font-mono);
   letter-spacing: 0.14em;
   color: var(--ink-dim);
-  margin-bottom: 34px;
+  margin-bottom: clamp(8px, 4vh, 34px);
+  flex: none;
 }
 
 /* Headline */
 
 .hxl-h1 {
-  font: 700 clamp(38px, 5.4vw, 68px) / 1.02 var(--font-sans);
+  /* min(…, Nvh) guards the width-based clamp against short viewports: a
+     wide-but-short screen (a landscape tablet, a laptop at 720p) would
+     otherwise size the headline off its width alone and print two ~70px
+     lines tall enough to shove the deck off the first screen. */
+  font: 700 clamp(30px, min(5.4vw, 7.6vh), 68px) / 1.04 var(--font-sans);
   letter-spacing: -0.05em;
   text-align: center;
   text-wrap: balance;
   max-width: 15ch;
-  margin: 0 0 20px;
+  margin: 0 0 clamp(8px, 2.2vh, 20px);
+  flex: none;
 }
 
 .hxl-highlight {
@@ -239,12 +280,13 @@ a.hxl-btn-pill {
 }
 
 .hxl-sub {
-  font: 400 17.5px/1.58 var(--font-sans);
+  font: 400 clamp(13.5px, min(1.36vw, 2.2vh), 17.5px) / 1.55 var(--font-sans);
   color: #4a4a52;
   text-align: center;
   text-wrap: pretty;
   max-width: 500px;
-  margin: 0 0 34px;
+  margin: 0 0 clamp(10px, 2.8vh, 34px);
+  flex: none;
 }
 
 /* Email signup */
@@ -252,12 +294,13 @@ a.hxl-btn-pill {
 .hxl-signup {
   width: 100%;
   max-width: 456px;
+  flex: none;
 }
 
 .hxl-signup-row {
   display: flex;
   align-items: center;
-  height: 56px;
+  height: clamp(42px, 8vh, 56px);
   border-radius: 14px;
   border: 1px solid rgba(16, 16, 20, 0.14);
   background: #fff;
@@ -316,9 +359,15 @@ a.hxl-btn-pill {
 
 .hxl-deck {
   position: relative;
-  height: 430px;
-  margin-top: 14px;
+  /* Viewport-relative, not a fixed 430px: on a short screen a fixed height
+     overflows past the fold before the cards even render. clamp() keeps a
+     "teaser" band (the top third-to-half of the fan) on every height, from
+     phones in landscape up to a 4K desktop. */
+  height: clamp(160px, 26vh, 380px);
+  width: 100%;
+  margin-top: clamp(6px, 1.6vh, 14px);
   overflow: hidden;
+  flex: none;
 }
 
 .hxl-deck::after {
@@ -327,7 +376,9 @@ a.hxl-btn-pill {
   left: 0;
   right: 0;
   bottom: 0;
-  height: 140px;
+  /* Proportional to the deck's own (now variable) height so the fade never
+     swallows most of a short deck's teaser band. */
+  height: min(140px, 42%);
   background: linear-gradient(to bottom, rgba(244, 244, 242, 0), var(--surface) 82%);
   pointer-events: none;
 }
@@ -668,19 +719,11 @@ a.hxl-footer-link {
   }
 
   .hxl-hero {
-    padding: 26px 20px 0;
-  }
-
-  .hxl-digit {
-    width: 38px;
-    height: 52px;
-    font-size: 28px;
-    border-radius: 8px;
-  }
-
-  .hxl-counter {
-    padding: 9px;
-    gap: 4px;
+    /* Top padding stays on the clamp() from the base rule (it already
+       shrinks with viewport height) — only the horizontal gutter changes
+       here. */
+    padding-left: 20px;
+    padding-right: 20px;
   }
 
   .hxl-signup-row {
@@ -700,11 +743,6 @@ a.hxl-footer-link {
   .hxl-signup-submit {
     order: 2;
     flex: 1 1 100%;
-  }
-
-  .hxl-deck {
-    height: 320px;
-    margin-top: 10px;
   }
 
   .hxl-deck-inner {
@@ -760,5 +798,113 @@ a.hxl-footer-link {
 @media (max-width: 420px) {
   .hxl-cats {
     grid-template-columns: 1fr;
+  }
+}
+
+/* ── Height-driven hero compression ────────────────────────────────────
+ * The clamp()s above already shrink continuously with vh, but on the
+ * shortest screens in the support matrix (~667-768px tall: phones in
+ * portrait, a landscape tablet, 720p/768p laptops) that alone still leaves
+ * the hero content taller than the space the deck needs. These two
+ * breakpoints step down the same properties further. They come after both
+ * the base rules and the max-width mobile block, so they win the cascade on
+ * every property they touch — including on a narrow *and* short screen
+ * (e.g. 500x667), where both apply.
+ *
+ * Priority rule: the deck teaser is the point of this page, so the hero
+ * shrinks before the deck ever does.
+ * ──────────────────────────────────────────────────────────────────── */
+
+@media (max-height: 820px) {
+  .hxl-hero {
+    padding-top: 10px;
+  }
+
+  .hxl-pill {
+    height: 26px;
+    margin-bottom: 10px;
+  }
+
+  .hxl-counter {
+    padding: 7px;
+    gap: 3px;
+    margin-bottom: 8px;
+  }
+
+  .hxl-digit {
+    width: 38px;
+    height: 50px;
+    font-size: 26px;
+    border-radius: 7px;
+  }
+
+  .hxl-counter-label {
+    margin-bottom: 12px;
+  }
+
+  .hxl-h1 {
+    margin-bottom: 8px;
+  }
+
+  .hxl-sub {
+    margin-bottom: 10px;
+    line-height: 1.42;
+  }
+
+  .hxl-signup-row {
+    height: 46px;
+  }
+
+  .hxl-signup-note {
+    margin-top: 6px;
+  }
+}
+
+@media (max-height: 700px) {
+  .hxl-hero {
+    padding-top: 6px;
+  }
+
+  .hxl-pill {
+    height: 24px;
+    margin-bottom: 6px;
+  }
+
+  .hxl-counter {
+    padding: 5px;
+    gap: 2px;
+    margin-bottom: 6px;
+  }
+
+  .hxl-digit {
+    width: 30px;
+    height: 40px;
+    font-size: 21px;
+    border-radius: 6px;
+  }
+
+  .hxl-counter-label {
+    margin-bottom: 6px;
+    font-size: 9px;
+  }
+
+  .hxl-h1 {
+    margin-bottom: 6px;
+    line-height: 1.06;
+  }
+
+  .hxl-sub {
+    margin-bottom: 6px;
+    font-size: 13px;
+    line-height: 1.32;
+  }
+
+  .hxl-signup-row {
+    height: 40px;
+  }
+
+  .hxl-signup-note {
+    height: 14px;
+    margin-top: 4px;
   }
 }
