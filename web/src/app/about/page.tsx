@@ -1,14 +1,25 @@
 import type { Metadata } from 'next';
 import { YouPanel } from '@/components/you-panel';
+import { supabase } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
 
+/** Active monitored-source count, so the "N sources" copy below never goes stale
+    as sources are added. Falls back to 88 (the launch count) on any error. */
+async function getSourceCount(): Promise<number> {
+  const { count, error } = await supabase
+    .from('source_registry')
+    .select('*', { count: 'exact', head: true })
+    .eq('is_active', true);
+  return error ? 88 : count ?? 88;
+}
+
 export const metadata: Metadata = {
   title: 'You · Hexcast',
-  description: 'Your Hexcast account, plus how Hexcast works: 88 curated Ethereum sources, AI-written summaries, 8 categories of signal. Open source, no paywall.',
+  description: 'Your Hexcast account, plus how Hexcast works: curated Ethereum sources, AI-written summaries, 8 categories of signal. Open source, no paywall.',
   openGraph: {
     title: 'You · Hexcast',
-    description: 'How Hexcast works: 88 curated Ethereum sources, AI-written summaries, 8 categories of signal.',
+    description: 'How Hexcast works: curated Ethereum sources, AI-written summaries, 8 categories of signal.',
   },
 };
 
@@ -21,7 +32,8 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-export default function YouPage() {
+export default async function YouPage() {
+  const sources = await getSourceCount();
   return (
     <main className="hx-page">
       <div className="hx-you-wrap">
@@ -42,8 +54,8 @@ export default function YouPage() {
             </Section>
 
             <Section title="DATA SOURCES">
-              88 sources across 17 tiers: core protocol research, EIP/ERC registries,
-              All Core Devs management, governance forums, 10 Ethereum client release
+              {sources} curated sources: core protocol research, EIP/ERC registries,
+              All Core Devs management, governance forums, Ethereum client release
               feeds, L2 team blogs, security auditors, research blogs, CryptoPanic
               trending, DefiLlama on-chain metrics, and community newsletters.
             </Section>

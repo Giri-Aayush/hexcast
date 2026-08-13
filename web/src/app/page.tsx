@@ -12,6 +12,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import '@/styles/landing.css';
+import { useSourceCount } from '@/lib/use-source-count';
 
 /* ────────────────────────────────────────────────────────────────────────
  * COPY FLAG — read before shipping this page anywhere real.
@@ -303,6 +304,7 @@ function InstallButton() {
 /* ── Page ─────────────────────────────────────────────────────────────── */
 
 export default function LandingPage() {
+  const sources = useSourceCount();
   return (
     <div className="hxl">
       {/* Header + hero + deck together form the first screen (~100dvh). The
@@ -331,7 +333,7 @@ export default function LandingPage() {
           <div className="hxl-hero-content">
             <span className="hxl-pill">
               <span className="hxl-pill-dot" />
-              <span className="hxl-pill-label">88 SOURCES MONITORED</span>
+              <span className="hxl-pill-label">{sources} SOURCES MONITORED</span>
             </span>
 
             <DigitCounter />
@@ -385,7 +387,9 @@ export default function LandingPage() {
         <div className="hxl-stats">
           {STATS.map((s) => (
             <div className="hxl-stat" key={s.label}>
-              <p className="hxl-stat-number">{s.number}</p>
+              <p className="hxl-stat-number">
+                {s.label === 'CURATED SOURCES' ? sources : s.number}
+              </p>
               <p className="hxl-stat-label">{s.label}</p>
               <p className="hxl-stat-desc">{s.desc}</p>
             </div>
