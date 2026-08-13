@@ -123,6 +123,13 @@ const defaultConfig = {
   dryRun: false,
   env: 'dev' as const,
   pipelineVersion: '1.0.0',
+  // The run log reports the model and prompt actually configured rather than guessing from
+  // env, so the fixture has to carry providers like the real config does. It previously did
+  // not need to, which is a small illustration of the bug: nothing in the pipeline had ever
+  // read what model it was using.
+  llmProviders: [
+    { label: 'test', baseUrl: 'http://test.local/v1', apiKey: 'k', model: 'test-model', prompt: 'v1' as const },
+  ],
 };
 
 // ── Setup ────────────────────────────────────────────────────────────────

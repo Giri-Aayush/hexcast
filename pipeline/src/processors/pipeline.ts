@@ -136,7 +136,25 @@ export async function processRawItems(
   if (deferred > 0) {
     logger.info(`${deferred} items deferred to next run`);
   }
-  logger.info(`Mode: ${config.env === 'prod' ? 'GPT-4.1 Mini (V1.3 prompt)' : 'Ollama 8B (V1 prompt)'}`);
+  // Report the model and prompt ACTUALLY configured, not a guess from PIPELINE_ENV.
+  //
+  // This line used to be a hardcoded fork on env: "GPT-4.1 Mini (V1.3 prompt)" for prod and
+  // "Ollama 8B (V1 prompt)" otherwise. Both are now wrong. Production runs DeepSeek V4 Flash
+  // on the v1 prompt, so the prod string was false on both counts — and it printed
+  // confidently on every run.
+  //
+  // It cost a real measurement. Local runs printed "Ollama 8B", which happened to be true
+  // because dev defaults to Ollama, and it was read as a cosmetic mislabel — so a whole
+  // corpus of 8B-written cards was measured and reported as if it described the product
+  // (see the correction in figures.ts). A log line that states a fact it does not check is
+  // worse than no log line, because it is believed.
+  const primary = config.llmProviders[0];
+  logger.info(
+    `Model: ${primary.model} (${primary.prompt} prompt) via ${primary.baseUrl}` +
+      (config.llmProviders.length > 1
+        ? `, ${config.llmProviders.length - 1} fallback(s)`
+        : ', no fallback'),
+  );
   logger.info(
     requestedOrder === 'auto'
       ? `Drain order: ${drainOrder} (auto — backlog ${allItems.length} vs ${config.batchSize * ROUND_ROBIN_BACKLOG_BATCHES} threshold)`
