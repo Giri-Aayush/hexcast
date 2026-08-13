@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => {
     mockShouldAutoSuppress: vi.fn(),
     mockHashUrl: vi.fn(),
     mockLoadConfig: vi.fn(),
+    mockGenerateImageFor: vi.fn(),
     mockLogger: { info: vi.fn(), debug: vi.fn(), warn: vi.fn(), error: vi.fn() },
     mockSupabase: { from: vi.fn() },
   };
@@ -52,6 +53,10 @@ vi.mock('../quality-scorer.js', () => ({
 
 vi.mock('../../utils/hash.js', () => ({
   hashUrl: mocks.mockHashUrl,
+}));
+
+vi.mock('../card-image-step.js', () => ({
+  generateImageFor: mocks.mockGenerateImageFor,
 }));
 
 vi.mock('../../config.js', () => ({
@@ -130,6 +135,7 @@ const defaultConfig = {
   llmProviders: [
     { label: 'test', baseUrl: 'http://test.local/v1', apiKey: 'k', model: 'test-model', prompt: 'v1' as const },
   ],
+  perCardImages: false,
 };
 
 // ── Setup ────────────────────────────────────────────────────────────────
@@ -175,6 +181,7 @@ beforeEach(() => {
   mocks.mockShouldAutoSuppress.mockReturnValue(false);
   mocks.mockHashUrl.mockReturnValue('abc123hash');
   mocks.mockCreateCard.mockResolvedValue('card-uuid-1');
+  mocks.mockGenerateImageFor.mockResolvedValue(undefined);
 });
 
 // ── Tests ────────────────────────────────────────────────────────────────
@@ -584,6 +591,37 @@ describe('processRawItems', () => {
 
     expect(result).toEqual({ processed: 1, skipped: 0, failed: 0 });
     expect(mocks.mockCreateCard).toHaveBeenCalledWith(expect.objectContaining({ stats: null }));
+  });
+
+  it('does not generate a per-card image unless explicitly enabled', async () => {
+    // Per-card generation costs ~$0.015 every card. It was previously always wired and only
+    // inert on production because the workflow happens not to pass OPENROUTER_API_KEY —
+    // behaviour that depends on a credential being absent is a coincidence, not a decision.
+    // This pins the default so nobody re-enables $5.85/month by adding an unrelated secret.
+    mocks.mockGetUnprocessedItems.mockResolvedValue([makeItem('item-1')]);
+    mocks.mockNormalize.mockReturnValue(makeNormalized('item-1'));
+    mocks.mockClassify.mockReturnValue('SECURITY');
+    mocks.mockSupabase.from.mockReturnValue({ insert: vi.fn().mockResolvedValue({ error: null }) });
+
+    await processRawItems();
+
+    expect(mocks.mockGenerateImageFor).not.toHaveBeenCalled();
+  });
+
+  it('generates a per-card image when the flag is on', async () => {
+    mocks.mockLoadConfig.mockReturnValue({ ...defaultConfig, perCardImages: true });
+    mocks.mockGetUnprocessedItems.mockResolvedValue([makeItem('item-1')]);
+    mocks.mockNormalize.mockReturnValue(makeNormalized('item-1'));
+    mocks.mockClassify.mockReturnValue('SECURITY');
+    mocks.mockSupabase.from.mockReturnValue({ insert: vi.fn().mockResolvedValue({ error: null }) });
+
+    await processRawItems();
+
+    expect(mocks.mockGenerateImageFor).toHaveBeenCalledWith(
+      'card-uuid-1',
+      'SECURITY',
+      'Test summary text.',
+    );
   });
 
   it('queues SECURITY category cards to high_priority_queue', async () => {

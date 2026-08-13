@@ -297,10 +297,26 @@ export async function processRawItems(
           logger.info(`HIGH PRIORITY: ${category} card queued`);
         }
 
-        // 9b. Cover art, same gate as the queue. After the card is written, never before:
-        // the card is the news and the image is decoration, so a slow or failed generation
-        // must not delay or block the thing people came for.
-        await generateImageFor(cardId, category, summary);
+        // 9b. Per-card cover art. OFF unless explicitly enabled.
+        //
+        // The launch approach is the reusable category pool
+        // (scripts/build-image-pool.ts): ~$2 once, covers every card, and no card text ever
+        // reaches the image model. Per-card generation costs ~$0.015 EVERY time a card is
+        // written — about $5.85/month at steady state — and only covers cards where motif
+        // extraction succeeds.
+        //
+        // This has to be an explicit flag rather than left wired, because it was already
+        // inert on production BY ACCIDENT: the workflow does not pass OPENROUTER_API_KEY, so
+        // generateImageFor returned early with a warning. Behaviour that depends on a
+        // credential being absent is not a decision, it is a coincidence — and the day
+        // someone adds that key for an unrelated reason, per-card billing switches itself on
+        // with nothing in the diff to show it.
+        //
+        // Kept rather than deleted because the story-specific path is a real feature we may
+        // turn back on; see the motif work and its tests.
+        if (config.perCardImages) {
+          await generateImageFor(cardId, category, summary);
+        }
       }
 
       await markAsProcessed(item.id);
