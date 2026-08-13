@@ -1,11 +1,8 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
-import { BottomNav } from '@/components/bottom-nav';
-import { FeedbackWidget } from '@/components/feedback-widget';
+import { AppChrome } from '@/components/app-chrome';
 import { ToastProvider } from '@/components/toast';
 import { PostHogProvider } from '@/components/posthog-provider';
-import { InstallPrompt } from '@/components/install-prompt';
-import { SpotlightTour } from '@/components/spotlight-tour';
 
 export const metadata: Metadata = {
   title: 'Hexcast',
@@ -106,10 +103,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <body suppressHydrationWarning className="antialiased overflow-hidden" >
           <PostHogProvider>
             {children}
-            <BottomNav />
-            <FeedbackWidget />
-            <InstallPrompt />
-            <SpotlightTour />
+            <AppChrome />
             <ToastProvider />
           </PostHogProvider>
         </body>

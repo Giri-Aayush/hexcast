@@ -1,0 +1,758 @@
+/**
+ * Marketing landing page, from the Claude Design project "Hexcast Landing.dc.html".
+ *
+ * This is a standalone route (/landing) — it is not linked into the app shell and
+ * does not replace the feed at `/`. It reuses the t3 tokens from design-system.css
+ * (--ink, --ground, --link-hover, the per-category --cat-* set) wherever the design
+ * doc's values line up with an existing token, and falls back to literal hex only
+ * for the handful of one-off colours the design system has no token for (the email
+ * success/error notes, the counter tile greys, the dark CTA block's on-dark greys).
+ *
+ * Fonts: Geist / Geist Mono are already loaded app-wide by the root layout, so this
+ * file only ever reaches for var(--font-sans) / var(--font-mono) — no new <link>.
+ */
+
+.hxl {
+  overflow-x: hidden;
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.hxl *::selection {
+  background: var(--ink);
+  color: var(--surface);
+}
+
+.hxl a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.hxl-col {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 28px;
+}
+
+/* ── Header ─────────────────────────────────────────────────────────── */
+
+.hxl-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 26px 28px;
+}
+
+.hxl-wordmark {
+  font: 600 27px/1 var(--font-sans);
+  letter-spacing: -0.032em;
+  color: var(--ink);
+}
+
+.hxl-wordmark .hxl-dot {
+  color: var(--link-hover);
+}
+
+.hxl-nav {
+  display: flex;
+  align-items: center;
+  gap: 26px;
+}
+
+/* `a.` here, not just `.`, to outrank the generic `.hxl a { color: inherit }`
+   reset above — same specificity as that rule, later in the source, so these
+   colours actually win instead of silently inheriting into invisible text. */
+a.hxl-nav-link {
+  font: 400 13px/1 var(--font-sans);
+  color: var(--ink-dim);
+}
+
+a.hxl-btn-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  padding: 0 18px;
+  border-radius: 9px;
+  background: var(--ink);
+  color: var(--surface);
+  font: 500 12.5px/1 var(--font-sans);
+  border: none;
+  cursor: pointer;
+}
+
+/* ── Hero ───────────────────────────────────────────────────────────── */
+
+.hxl-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 34px 28px 0;
+}
+
+.hxl-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 29px;
+  padding: 0 14px;
+  border-radius: 15px;
+  border: 1px solid rgba(16, 16, 20, 0.14);
+  margin-bottom: 30px;
+}
+
+.hxl-pill-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #2c7a5c;
+  flex: none;
+}
+
+.hxl-pill-label {
+  font: 400 10.5px/1 var(--font-mono);
+  letter-spacing: 0.12em;
+  color: var(--ink-dim);
+}
+
+/* Counter */
+
+.hxl-counter {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--ink);
+  border-radius: 16px;
+  padding: 11px;
+  margin-bottom: 10px;
+}
+
+.hxl-digit {
+  width: 52px;
+  height: 70px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 500 40px/1 var(--font-mono);
+  letter-spacing: -0.04em;
+  color: var(--ink);
+  background: var(--surface);
+  box-shadow: inset 0 -1px 0 rgba(16, 16, 20, 0.12);
+  font-variant-numeric: tabular-nums;
+}
+
+.hxl-digit-ones {
+  background: #c9c9c4;
+}
+
+.hxl-counter-label {
+  font: 400 10.5px/1 var(--font-mono);
+  letter-spacing: 0.14em;
+  color: var(--ink-dim);
+  margin-bottom: 34px;
+}
+
+/* Headline */
+
+.hxl-h1 {
+  font: 700 clamp(38px, 5.4vw, 68px) / 1.02 var(--font-sans);
+  letter-spacing: -0.05em;
+  text-align: center;
+  text-wrap: balance;
+  max-width: 15ch;
+  margin: 0 0 20px;
+}
+
+.hxl-highlight {
+  position: relative;
+  color: var(--ink);
+  background-image: linear-gradient(to top, rgba(31, 79, 168, 0.14), rgba(31, 79, 168, 0.14));
+  background-repeat: no-repeat;
+  background-position: 0 100%;
+  background-size: 100% 0%;
+  animation:
+    hxl-sweep 0.62s cubic-bezier(0.22, 0.7, 0.2, 1) 0.34s forwards,
+    hxl-ink 0.38s ease 0.34s forwards;
+}
+
+.hxl-caret {
+  display: inline-block;
+  width: 3px;
+  height: 0.78em;
+  margin-left: 2px;
+  background: var(--link-hover);
+  vertical-align: -0.08em;
+  animation: hxl-caret-blink 0.85s steps(1, jump-none) 3;
+  animation-fill-mode: forwards;
+}
+
+@keyframes hxl-sweep {
+  from {
+    background-size: 100% 0%;
+  }
+  to {
+    background-size: 100% 44%;
+  }
+}
+
+@keyframes hxl-ink {
+  from {
+    color: var(--ink);
+  }
+  to {
+    color: var(--link-hover);
+  }
+}
+
+@keyframes hxl-caret-blink {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hxl-highlight {
+    animation: none;
+    color: var(--link-hover);
+    background-size: 100% 44%;
+  }
+  .hxl-caret {
+    animation: none;
+    opacity: 0;
+  }
+}
+
+.hxl-sub {
+  font: 400 17.5px/1.58 var(--font-sans);
+  color: #4a4a52;
+  text-align: center;
+  text-wrap: pretty;
+  max-width: 500px;
+  margin: 0 0 34px;
+}
+
+/* Email signup */
+
+.hxl-signup {
+  width: 100%;
+  max-width: 456px;
+}
+
+.hxl-signup-row {
+  display: flex;
+  align-items: center;
+  height: 56px;
+  border-radius: 14px;
+  border: 1px solid rgba(16, 16, 20, 0.14);
+  background: #fff;
+  padding: 5px 5px 5px 20px;
+  transition: border-color 0.15s ease;
+}
+
+.hxl-signup-row:focus-within {
+  border-color: rgba(16, 16, 20, 0.4);
+}
+
+.hxl-signup-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font: 400 15px/1 var(--font-sans);
+  color: var(--ink);
+  min-width: 0;
+}
+
+.hxl-signup-input::placeholder {
+  color: var(--ink-dim);
+}
+
+.hxl-signup-submit {
+  flex: none;
+  height: 46px;
+  padding: 0 20px;
+  border-radius: 10px;
+  background: var(--ink);
+  color: var(--surface);
+  font: 500 13.5px/1 var(--font-sans);
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.hxl-signup-note {
+  height: 16px;
+  margin-top: 12px;
+  font: 400 10.5px/1 var(--font-mono);
+  letter-spacing: 0.1em;
+  text-align: center;
+}
+
+.hxl-signup-note-error {
+  color: #a3342c;
+}
+
+.hxl-signup-note-success {
+  color: #2c7a5c;
+}
+
+/* ── Fanned card deck ───────────────────────────────────────────────── */
+
+.hxl-deck {
+  position: relative;
+  height: 296px;
+  margin-top: 56px;
+  overflow: hidden;
+}
+
+.hxl-deck::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 140px;
+  background: linear-gradient(to bottom, rgba(244, 244, 242, 0), var(--surface) 82%);
+  pointer-events: none;
+}
+
+.hxl-deck-inner {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 20px;
+  padding-top: 30px;
+}
+
+.hxl-deck-card {
+  flex: none;
+  width: 256px;
+  border-radius: 20px;
+  background: var(--cat-surface);
+  border: 1px solid var(--cat-line);
+  overflow: hidden;
+}
+
+.hxl-deck-dither {
+  height: 92px;
+  background-image: radial-gradient(var(--cat-badge) 1.1px, transparent 1.2px);
+  background-size: var(--cat-dither) var(--cat-dither);
+  opacity: 0.6;
+  -webkit-mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.28) 46%, transparent 88%);
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.28) 46%, transparent 88%);
+}
+
+.hxl-deck-badge-row {
+  margin-top: -72px;
+  padding: 0 20px;
+}
+
+.hxl-deck-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 11px;
+  border-radius: 13px;
+  background: var(--cat-badge);
+  color: var(--cat-badge-ink);
+  font: 500 9.5px/1 var(--font-mono);
+  letter-spacing: 0.16em;
+  white-space: nowrap;
+}
+
+.hxl-deck-body {
+  padding: 20px;
+}
+
+.hxl-deck-headline {
+  font: 600 20px/1.2 var(--font-sans);
+  letter-spacing: -0.028em;
+  color: var(--ink);
+  margin: 0 0 8px;
+}
+
+.hxl-deck-summary {
+  font: 400 13.5px/1.6 var(--font-sans);
+  color: var(--cat-body);
+  margin: 0 0 14px;
+}
+
+.hxl-deck-source {
+  font: 400 9.5px/1 var(--font-mono);
+  letter-spacing: 0.1em;
+  color: var(--cat-meta);
+}
+
+/* ── Section shell (01 / 02) ────────────────────────────────────────── */
+
+.hxl-section {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 96px 28px 0;
+}
+
+.hxl-eyebrow {
+  font: 400 10.5px/1 var(--font-mono);
+  letter-spacing: 0.16em;
+  color: var(--ink-dim);
+  margin: 0 0 12px;
+}
+
+.hxl-h2 {
+  font: 600 30px/1.16 var(--font-sans);
+  letter-spacing: -0.034em;
+  margin: 0 0 40px;
+  max-width: 34ch;
+}
+
+/* Section 01 · stats */
+
+.hxl-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.hxl-stat {
+  border-top: 1px solid rgba(16, 16, 20, 0.16);
+  padding-top: 16px;
+}
+
+.hxl-stat-number {
+  font: 500 30px/1 var(--font-mono);
+  letter-spacing: -0.03em;
+  color: var(--ink);
+  margin: 0 0 6px;
+}
+
+.hxl-stat-label {
+  font: 500 10.5px/1 var(--font-mono);
+  letter-spacing: 0.12em;
+  color: var(--ink-dim);
+  margin: 0 0 10px;
+}
+
+.hxl-stat-desc {
+  font: 400 14.5px/1.6 var(--font-sans);
+  color: #4a4a52;
+  margin: 0;
+}
+
+/* Section 02 · categories */
+
+.hxl-cats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 44px;
+}
+
+.hxl-cat-tile {
+  border-radius: 14px;
+  background: var(--cat-surface);
+  border: 1px solid var(--cat-line);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.hxl-cat-name {
+  font: 500 10px/1 var(--font-mono);
+  letter-spacing: 0.16em;
+  color: var(--cat-badge);
+  margin: 0;
+}
+
+.hxl-cat-count {
+  font: 500 21px/1 var(--font-mono);
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  margin: 0;
+}
+
+.hxl-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.hxl-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 8px;
+  background: rgba(16, 16, 20, 0.05);
+  font: 400 12px/1 var(--font-mono);
+  color: #3f3f46;
+}
+
+.hxl-chip-more {
+  background: transparent;
+  border: 1px solid rgba(16, 16, 20, 0.14);
+  color: var(--ink-dim);
+}
+
+/* ── Install CTA ────────────────────────────────────────────────────── */
+
+.hxl-cta {
+  max-width: 1180px;
+  margin: 96px auto 0;
+  padding: 0 28px;
+}
+
+.hxl-cta-block {
+  border-radius: 24px;
+  background: var(--ink);
+  color: var(--surface);
+  padding: 52px 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 40px;
+  flex-wrap: wrap;
+}
+
+.hxl-cta-copy {
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.hxl-cta-eyebrow {
+  font: 400 10.5px/1 var(--font-mono);
+  letter-spacing: 0.14em;
+  color: #a9a9b1;
+  margin: 0;
+}
+
+.hxl-cta-heading {
+  font: 600 34px/1.14 var(--font-sans);
+  letter-spacing: -0.036em;
+  margin: 0;
+}
+
+.hxl-cta-body {
+  font: 400 15px/1.6 var(--font-sans);
+  color: #a9a9b1;
+  margin: 0;
+}
+
+.hxl-cta-actions {
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+a.hxl-btn-light {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 50px;
+  padding: 0 24px;
+  border-radius: 11px;
+  background: var(--surface);
+  color: var(--ink);
+  font: 500 13.5px/1 var(--font-sans);
+  border: none;
+  cursor: pointer;
+  width: 100%;
+}
+
+.hxl-btn-outline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 50px;
+  padding: 0 24px;
+  border-radius: 11px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #d5d5da;
+  font: 500 13.5px/1 var(--font-sans);
+  cursor: pointer;
+  width: 100%;
+}
+
+/* ── Footer ─────────────────────────────────────────────────────────── */
+
+.hxl-footer {
+  max-width: 1180px;
+  margin: 66px auto 0;
+  padding: 26px 28px 46px;
+  border-top: 1px solid rgba(16, 16, 20, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.hxl-footer-wordmark {
+  font: 600 16px/1 var(--font-sans);
+  letter-spacing: -0.032em;
+  color: var(--ink);
+}
+
+.hxl-footer-links {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+a.hxl-footer-link {
+  font: 400 12px/1 var(--font-sans);
+  color: var(--ink-dim);
+}
+
+.hxl-footer-note {
+  font: 400 10px/1 var(--font-mono);
+  letter-spacing: 0.12em;
+  color: #6b6b74;
+}
+
+/* ── Responsive ─────────────────────────────────────────────────────── */
+
+@media (max-width: 860px) {
+  .hxl-cats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 720px) {
+  .hxl-stats {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+
+  .hxl-cta-block {
+    padding: 40px 28px;
+  }
+
+  .hxl-cta-heading {
+    font-size: 28px;
+  }
+}
+
+@media (max-width: 640px) {
+  .hxl-header {
+    padding: 20px 20px;
+  }
+
+  .hxl-nav {
+    gap: 14px;
+  }
+
+  .hxl-nav-link {
+    display: none;
+  }
+
+  .hxl-hero {
+    padding: 26px 20px 0;
+  }
+
+  .hxl-digit {
+    width: 38px;
+    height: 52px;
+    font-size: 28px;
+    border-radius: 8px;
+  }
+
+  .hxl-counter {
+    padding: 9px;
+    gap: 4px;
+  }
+
+  .hxl-signup-row {
+    height: auto;
+    flex-wrap: wrap;
+    border-radius: 14px;
+    padding: 12px 12px 12px 18px;
+    gap: 10px;
+  }
+
+  .hxl-signup-input {
+    flex: 1 1 100%;
+    order: 1;
+    height: 30px;
+  }
+
+  .hxl-signup-submit {
+    order: 2;
+    flex: 1 1 100%;
+  }
+
+  .hxl-deck {
+    height: 240px;
+    margin-top: 40px;
+  }
+
+  .hxl-deck-inner {
+    transform: scale(0.62);
+    transform-origin: top center;
+  }
+
+  .hxl-section {
+    padding: 64px 20px 0;
+  }
+
+  .hxl-h2 {
+    font-size: 24px;
+  }
+
+  .hxl-cats {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .hxl-cta {
+    padding: 0 20px;
+  }
+
+  .hxl-cta-block {
+    padding: 32px 22px;
+    gap: 28px;
+  }
+
+  .hxl-cta-heading {
+    font-size: 24px;
+  }
+
+  .hxl-cta-actions {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .hxl-btn-light,
+  .hxl-btn-outline {
+    width: 100%;
+  }
+
+  .hxl-footer {
+    padding: 22px 20px 40px;
+  }
+
+  .hxl-footer-links {
+    gap: 14px;
+  }
+}
+
+@media (max-width: 420px) {
+  .hxl-cats {
+    grid-template-columns: 1fr;
+  }
+}
