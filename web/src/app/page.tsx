@@ -28,9 +28,9 @@ import '@/styles/landing.css';
 const HERO_HIGHLIGHT_PHRASE = 'sixty words';
 const WORDS_PER_CARD_STAT = '60';
 
-const COUNTER_START = 41180;
-const COUNTER_INTERVAL_MS = 4200;
 const COUNTER_DIGITS = 5;
+// Re-poll the real count often enough to feel live without hammering the DB.
+const COUNTER_POLL_MS = 15000;
 
 type CategoryKey =
   | 'RESEARCH'
@@ -178,19 +178,34 @@ function smoothScrollTo(e: React.MouseEvent<HTMLAnchorElement>, id: string) {
 /* ── Live counter ─────────────────────────────────────────────────────── */
 
 function DigitCounter() {
-  const [value, setValue] = useState(COUNTER_START);
+  // null until the first fetch resolves, so we never flash a fake number.
+  const [value, setValue] = useState<number | null>(null);
 
   useEffect(() => {
-    const id = setInterval(() => {
-      setValue((v) => v + 1);
-    }, COUNTER_INTERVAL_MS);
-    return () => clearInterval(id);
+    let alive = true;
+    async function load() {
+      try {
+        const res = await fetch('/api/stats/cards', { cache: 'no-store' });
+        if (!res.ok) return;
+        const { count } = await res.json();
+        if (alive && typeof count === 'number') setValue(count);
+      } catch {
+        // Keep the last value on a transient failure rather than resetting.
+      }
+    }
+    load();
+    const id = setInterval(load, COUNTER_POLL_MS);
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
   }, []);
 
-  const digits = String(value).padStart(COUNTER_DIGITS, '0').split('');
+  const shown = value ?? 0;
+  const digits = String(shown).padStart(COUNTER_DIGITS, '0').split('');
 
   return (
-    <div className="hxl-counter" aria-label={`${value} cards published since launch`}>
+    <div className="hxl-counter" aria-label={`${shown} cards published since launch`}>
       {digits.map((d, i) => (
         <span
           key={i}
@@ -290,71 +305,79 @@ function InstallButton() {
 export default function LandingPage() {
   return (
     <div className="hxl">
-      <header className="hxl-header">
-        <span className="hxl-wordmark">
-          hexcast<span className="hxl-dot">.</span>
-        </span>
-        <nav className="hxl-nav">
-          <a className="hxl-nav-link" href="#sources" onClick={(e) => smoothScrollTo(e, 'sources')}>
-            Sources
-          </a>
-          <a className="hxl-nav-link" href="#how" onClick={(e) => smoothScrollTo(e, 'how')}>
-            How it works
-          </a>
-          <a href="/feed" className="hxl-btn-pill">
-            Open the feed
-          </a>
-        </nav>
-      </header>
-
-      <section className="hxl-hero">
-        <span className="hxl-pill">
-          <span className="hxl-pill-dot" />
-          <span className="hxl-pill-label">88 SOURCES MONITORED</span>
-        </span>
-
-        <DigitCounter />
-        <span className="hxl-counter-label">CARDS PUBLISHED SINCE LAUNCH</span>
-
-        <h1 className="hxl-h1">
-          Every Ethereum development in{' '}
-          <span className="hxl-highlight">
-            {HERO_HIGHLIGHT_PHRASE}
-            <span className="hxl-caret" aria-hidden="true" />
+      {/* Header + hero + deck together form the first screen (~100dvh). The
+          deck is pinned to the bottom of it via hxl-hero's flex layout, so it
+          always shows a band of cards on load, regardless of viewport height.
+          See hxl-firstscreen / hxl-hero-content in landing.css. */}
+      <div className="hxl-firstscreen">
+        <header className="hxl-header">
+          <span className="hxl-wordmark">
+            hexcast<span className="hxl-dot">.</span>
           </span>
-          .
-        </h1>
+          <nav className="hxl-nav">
+            <a className="hxl-nav-link" href="#sources" onClick={(e) => smoothScrollTo(e, 'sources')}>
+              Sources
+            </a>
+            <a className="hxl-nav-link" href="#how" onClick={(e) => smoothScrollTo(e, 'how')}>
+              How it works
+            </a>
+            <a href="/feed" className="hxl-btn-pill">
+              Open the feed
+            </a>
+          </nav>
+        </header>
 
-        <p className="hxl-sub">
-          Protocol research, client releases, governance votes and exploits, read as
-          one card per screen. No charts, no threads, no scrolling for the point.
-        </p>
+        <section className="hxl-hero">
+          <div className="hxl-hero-content">
+            <span className="hxl-pill">
+              <span className="hxl-pill-dot" />
+              <span className="hxl-pill-label">88 SOURCES MONITORED</span>
+            </span>
 
-        <EmailSignup />
+            <DigitCounter />
+            <span className="hxl-counter-label">CARDS PUBLISHED SINCE LAUNCH</span>
 
-        <div className="hxl-deck" aria-hidden="true">
-          <div className="hxl-deck-inner">
-            {DECK_CARDS.map((card, i) => (
-              <article
-                key={i}
-                className="hxl-deck-card"
-                data-category={card.category}
-                style={{ transform: `rotate(${card.rotate}deg) translateY(${card.y}px)` }}
-              >
-                <div className="hxl-deck-dither" />
-                <div className="hxl-deck-badge-row">
-                  <span className="hxl-deck-badge">{CATEGORY_LABEL[card.category]}</span>
-                </div>
-                <div className="hxl-deck-body">
-                  <h3 className="hxl-deck-headline">{card.headline}</h3>
-                  <p className="hxl-deck-summary">{card.summary}</p>
-                  <div className="hxl-deck-source">{card.source}</div>
-                </div>
-              </article>
-            ))}
+            <h1 className="hxl-h1">
+              Every Ethereum development in{' '}
+              <span className="hxl-highlight">
+                {HERO_HIGHLIGHT_PHRASE}
+                <span className="hxl-caret" aria-hidden="true" />
+              </span>
+              .
+            </h1>
+
+            <p className="hxl-sub">
+              Protocol research, client releases, governance votes and exploits, read as
+              one card per screen. No charts, no threads, no scrolling for the point.
+            </p>
+
+            <EmailSignup />
           </div>
-        </div>
-      </section>
+
+          <div className="hxl-deck" aria-hidden="true">
+            <div className="hxl-deck-inner">
+              {DECK_CARDS.map((card, i) => (
+                <article
+                  key={i}
+                  className="hxl-deck-card"
+                  data-category={card.category}
+                  style={{ transform: `rotate(${card.rotate}deg) translateY(${card.y}px)` }}
+                >
+                  <div className="hxl-deck-dither" />
+                  <div className="hxl-deck-badge-row">
+                    <span className="hxl-deck-badge">{CATEGORY_LABEL[card.category]}</span>
+                  </div>
+                  <div className="hxl-deck-body">
+                    <h3 className="hxl-deck-headline">{card.headline}</h3>
+                    <p className="hxl-deck-summary">{card.summary}</p>
+                    <div className="hxl-deck-source">{card.source}</div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+      </div>
 
       <section className="hxl-section" id="how">
         <p className="hxl-eyebrow">01</p>
