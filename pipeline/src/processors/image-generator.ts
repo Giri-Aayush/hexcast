@@ -142,9 +142,19 @@ async function cropEdges(png: Buffer): Promise<Buffer> {
 export async function generateCardImage(
   category: Category,
   motifs: string[],
-  options: { apiKey: string; model?: string; timeoutMs?: number } = { apiKey: '' },
+  options: {
+    apiKey: string;
+    model?: string;
+    timeoutMs?: number;
+    /**
+     * Use this prompt instead of building one from category + motifs. The pool builder needs
+     * a category-only prompt with its own composition hint, and threading that through the
+     * motif path would mean two callers quietly editing each other's prompt.
+     */
+    promptOverride?: string;
+  } = { apiKey: '' },
 ): Promise<ImageResult> {
-  const prompt = buildImagePrompt(category, motifs);
+  const prompt = options.promptOverride ?? buildImagePrompt(category, motifs);
   const model = options.model ?? process.env.IMAGE_MODEL ?? DEFAULT_IMAGE_MODEL;
 
   // Generation runs 5-10s on the chosen model but has been seen past a minute on others,
