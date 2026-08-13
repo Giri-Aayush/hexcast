@@ -1,15 +1,13 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
-import { BottomNav } from '@/components/bottom-nav';
-import { FeedbackWidget } from '@/components/feedback-widget';
+import { AppChrome } from '@/components/app-chrome';
 import { ToastProvider } from '@/components/toast';
 import { PostHogProvider } from '@/components/posthog-provider';
-import { InstallPrompt } from '@/components/install-prompt';
-import { SpotlightTour } from '@/components/spotlight-tour';
 
 export const metadata: Metadata = {
-  title: 'Hexcast',
-  description: 'Ethereum ecosystem intelligence in short, self-contained cards. Protocol updates, governance votes, security incidents, and client releases from 88 curated sources.',
+  title: 'Hexcast: Every Ethereum development, one card at a time',
+  description:
+    'Protocol research, client releases, governance votes and exploits from 88 curated sources, read as one card per screen. No charts, no threads, no scrolling for the point.',
   manifest: '/manifest.json',
   metadataBase: new URL('https://hexcast.xyz'),
   icons: {
@@ -24,7 +22,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: 'Hexcast',
-    description: 'Ethereum ecosystem intelligence, one card at a time.',
+    description: 'Every Ethereum development, one card at a time. 88 curated sources, 8 categories.',
     url: 'https://hexcast.xyz',
     siteName: 'Hexcast',
     type: 'website',
@@ -32,7 +30,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'Hexcast',
-    description: 'Ethereum ecosystem intelligence, one card at a time.',
+    description: 'Every Ethereum development, one card at a time. 88 curated sources, 8 categories.',
   },
   appleWebApp: {
     capable: true,
@@ -106,10 +104,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <body suppressHydrationWarning className="antialiased overflow-hidden" >
           <PostHogProvider>
             {children}
-            <BottomNav />
-            <FeedbackWidget />
-            <InstallPrompt />
-            <SpotlightTour />
+            <AppChrome />
             <ToastProvider />
           </PostHogProvider>
         </body>

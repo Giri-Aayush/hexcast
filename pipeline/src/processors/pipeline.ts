@@ -1,12 +1,16 @@
+import { randomUUID } from 'node:crypto';
 import type { RawItem } from '@hexcast/shared';
 import { getUnprocessedItems, markAsProcessed } from '../db/raw-items.js';
 import { createCard } from '../db/cards.js';
+import { poolImageUrlFor } from '../db/card-images.js';
 import { normalize } from './normalizer.js';
 import { isDuplicate } from './deduplicator.js';
 import { classify } from './classifier.js';
 import { extractEntities } from './entity-checker.js';
 import { summarize } from './summarizer.js';
 import { scoreQualityBreakdown, shouldAutoSuppress } from './quality-scorer.js';
+import { isHighPriority } from './priority.js';
+import { generateImageFor } from './card-image-step.js';
 import { hashUrl } from '../utils/hash.js';
 import { loadConfig } from '../config.js';
 import { logger } from '../utils/logger.js';
@@ -134,7 +138,25 @@ export async function processRawItems(
   if (deferred > 0) {
     logger.info(`${deferred} items deferred to next run`);
   }
-  logger.info(`Mode: ${config.env === 'prod' ? 'GPT-4.1 Mini (V1.3 prompt)' : 'Ollama 8B (V1 prompt)'}`);
+  // Report the model and prompt ACTUALLY configured, not a guess from PIPELINE_ENV.
+  //
+  // This line used to be a hardcoded fork on env: "GPT-4.1 Mini (V1.3 prompt)" for prod and
+  // "Ollama 8B (V1 prompt)" otherwise. Both are now wrong. Production runs DeepSeek V4 Flash
+  // on the v1 prompt, so the prod string was false on both counts — and it printed
+  // confidently on every run.
+  //
+  // It cost a real measurement. Local runs printed "Ollama 8B", which happened to be true
+  // because dev defaults to Ollama, and it was read as a cosmetic mislabel — so a whole
+  // corpus of 8B-written cards was measured and reported as if it described the product
+  // (see the correction in figures.ts). A log line that states a fact it does not check is
+  // worse than no log line, because it is believed.
+  const primary = config.llmProviders[0];
+  logger.info(
+    `Model: ${primary.model} (${primary.prompt} prompt) via ${primary.baseUrl}` +
+      (config.llmProviders.length > 1
+        ? `, ${config.llmProviders.length - 1} fallback(s)`
+        : ', no fallback'),
+  );
   logger.info(
     requestedOrder === 'auto'
       ? `Drain order: ${drainOrder} (auto — backlog ${allItems.length} vs ${config.batchSize * ROUND_ROBIN_BACKLOG_BATCHES} threshold)`
@@ -227,7 +249,7 @@ export async function processRawItems(
         return;
       }
 
-      const { headline, summary, signals } = await summarize(normalized.fullText, normalized.title);
+      const { headline, summary, stats, signals } = await summarize(normalized.fullText, normalized.title);
 
       // 7. Quality score
       const quality = scoreQualityBreakdown({
@@ -249,7 +271,20 @@ export async function processRawItems(
       }
 
       // 8. Create card
+      // Cover art is assigned AT CREATION, from the category pool, so every card is imaged
+      // the moment it exists. The id is generated here rather than by the database so the
+      // pool index can be derived from it and written in the same insert — otherwise the
+      // card is live and bare until a second write, and "every card has an image" becomes
+      // something a backfill has to keep re-establishing rather than something that is true.
+      //
+      // Costs nothing: it indexes into images already generated. Null when the category has
+      // no pool yet, which renders the dither.
+      const newCardId = randomUUID();
+      const imageUrl = await poolImageUrlFor(category, newCardId);
+
       const cardId = await createCard({
+        id: newCardId,
+        imageUrl,
         sourceId: normalized.sourceId,
         canonicalUrl: normalized.canonicalUrl,
         urlHash: hashUrl(normalized.canonicalUrl),
@@ -263,10 +298,11 @@ export async function processRawItems(
         qualityScore,
         quality,
         signals,
+        stats,
       });
 
       // 9. Queue high-priority items (SECURITY / UPGRADE)
-      if (category === 'SECURITY' || category === 'UPGRADE') {
+      if (isHighPriority(category)) {
         const { error: hpqError } = await supabase
           .from('high_priority_queue')
           .insert({ card_id: cardId, category });
@@ -274,6 +310,27 @@ export async function processRawItems(
           logger.warn(`Failed to queue high-priority card ${cardId}: ${hpqError.message}`);
         } else {
           logger.info(`HIGH PRIORITY: ${category} card queued`);
+        }
+
+        // 9b. Per-card cover art. OFF unless explicitly enabled.
+        //
+        // The launch approach is the reusable category pool
+        // (scripts/build-image-pool.ts): ~$2 once, covers every card, and no card text ever
+        // reaches the image model. Per-card generation costs ~$0.015 EVERY time a card is
+        // written — about $5.85/month at steady state — and only covers cards where motif
+        // extraction succeeds.
+        //
+        // This has to be an explicit flag rather than left wired, because it was already
+        // inert on production BY ACCIDENT: the workflow does not pass OPENROUTER_API_KEY, so
+        // generateImageFor returned early with a warning. Behaviour that depends on a
+        // credential being absent is not a decision, it is a coincidence — and the day
+        // someone adds that key for an unrelated reason, per-card billing switches itself on
+        // with nothing in the diff to show it.
+        //
+        // Kept rather than deleted because the story-specific path is a real feature we may
+        // turn back on; see the motif work and its tests.
+        if (config.perCardImages) {
+          await generateImageFor(cardId, category, summary);
         }
       }
 

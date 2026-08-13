@@ -4,12 +4,12 @@ import { useEffect } from 'react';
 import { SignedIn, SignedOut, SignInButton, SignOutButton, useUser } from '@/lib/auth-ui';
 import { useSaved } from '@/stores/saved';
 import { usePreferences } from '@/stores/preferences';
-
-const TOTAL_SOURCES = 88;
+import { useSourceCount } from '@/lib/use-source-count';
 
 /** The app's own numbers, built like a card's stat row. Shown only when signed out —
     a signed-in reader already has their own stat row just above, and a second one
-    repeating "8 CATEGORIES" reads as noise. */
+    repeating "8 CATEGORIES" reads as noise. The SOURCES value is filled live from
+    useSourceCount at render; the '88' here is only the pre-fetch fallback. */
 const FACTS = [
   { value: '88', label: 'SOURCES' },
   { value: '17', label: 'TIERS' },
@@ -27,6 +27,7 @@ export function YouPanel() {
   const { user } = useUser();
   const { savedCards, initialized, init } = useSaved();
   const { hiddenSources } = usePreferences();
+  const sources = useSourceCount();
 
   useEffect(() => {
     if (user) init();
@@ -61,7 +62,7 @@ export function YouPanel() {
             <span>SAVED</span>
           </div>
           <div>
-            <span>{TOTAL_SOURCES - hiddenSources.length}</span>
+            <span>{sources - hiddenSources.length}</span>
             <span>SOURCES ON</span>
           </div>
           <div>
@@ -70,9 +71,24 @@ export function YouPanel() {
           </div>
         </div>
 
-        <SignOutButton>
-          <button className="hx-btn-quiet">Sign out</button>
-        </SignOutButton>
+        <div className="hx-you-actions">
+          <button
+            className="hx-btn-quiet"
+            onClick={() => {
+              // Clear the seen-flag and hard-navigate so SpotlightTour remounts and
+              // re-fires on the feed. A client-side push wouldn't remount it (the tour
+              // lives in the persistent app chrome), so its once-per-mount guard would
+              // swallow the replay.
+              localStorage.removeItem('hexcast_tour_completed');
+              window.location.href = '/feed';
+            }}
+          >
+            Replay tour
+          </button>
+          <SignOutButton>
+            <button className="hx-btn-quiet">Sign out</button>
+          </SignOutButton>
+        </div>
       </SignedIn>
 
       <SignedOut>
@@ -88,7 +104,7 @@ export function YouPanel() {
         <div className="hx-about-stats">
           {FACTS.map((f) => (
             <div key={f.label}>
-              <span>{f.value}</span>
+              <span>{f.label === 'SOURCES' ? sources : f.value}</span>
               <span>{f.label}</span>
             </div>
           ))}

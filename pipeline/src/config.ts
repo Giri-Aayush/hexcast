@@ -157,6 +157,12 @@ export function loadConfig() {
     // none is not. Character count alone could not tell those apart and was silently
     // excluding an entire category — see the gate in processRawItems.
     minSourceIdentifiers: parseInt(process.env.MIN_SOURCE_IDENTIFIERS ?? '3', 10),
+    /**
+     * Generate a unique cover image per high-priority card, instead of assigning from the
+     * reusable category pool. Costs ~$0.015 per card written; the pool costs ~$2 once.
+     * Defaults OFF so the expensive path is chosen deliberately rather than inherited.
+     */
+    perCardImages: process.env.CARD_IMAGES_PER_CARD === 'true',
     // Extra JSON merged into every completions request, for params only one provider
     // understands — OpenRouter's reasoning:{exclude:true} being the case in hand, since
     // reasoning tokens bill as output and a 60-word factual summary needs none of it.

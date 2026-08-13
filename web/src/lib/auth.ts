@@ -50,6 +50,31 @@ export const auth = betterAuth({
     enabled: true,
   },
 
+  // Google sign-in activates only when both halves of the OAuth credential are set,
+  // same gate pattern as the infra plugins above — a half-configured env stays a
+  // clean no-op instead of erroring on every social request. The sign-in page reads
+  // the same two vars at request time to decide whether to show the button, so the UI
+  // and the backend never disagree. Authorized redirect URI is
+  // <origin>/api/auth/callback/google.
+  ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+    ? {
+        socialProviders: {
+          google: {
+            clientId: process.env.GOOGLE_CLIENT_ID,
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+          },
+        },
+      }
+    : {}),
+
+  // Deliberately NOT auto-linking a Google login to a pre-existing email/password
+  // account. Better Auth's default errors `account_not_linked` in that case, and we
+  // keep it: auto-linking would need a trusted provider, but since password signup is
+  // unverified (no mailer), an attacker could pre-register a victim's email and have it
+  // merged when the victim later signs in with Google. Instead the sign-in page catches
+  // that error and tells the existing user to sign in with their password. Safe without
+  // email verification. See email-verification-debt for the eventual proper fix.
+
   advanced: {
     ipAddress: {
       // We deploy behind Netlify's CDN, so every request's TCP peer is Netlify —

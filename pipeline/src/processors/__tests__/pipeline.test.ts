@@ -15,6 +15,8 @@ const mocks = vi.hoisted(() => {
     mockShouldAutoSuppress: vi.fn(),
     mockHashUrl: vi.fn(),
     mockLoadConfig: vi.fn(),
+    mockGenerateImageFor: vi.fn(),
+    mockPoolImageUrlFor: vi.fn(),
     mockLogger: { info: vi.fn(), debug: vi.fn(), warn: vi.fn(), error: vi.fn() },
     mockSupabase: { from: vi.fn() },
   };
@@ -54,6 +56,14 @@ vi.mock('../../utils/hash.js', () => ({
   hashUrl: mocks.mockHashUrl,
 }));
 
+vi.mock('../card-image-step.js', () => ({
+  generateImageFor: mocks.mockGenerateImageFor,
+}));
+
+vi.mock('../../db/card-images.js', () => ({
+  poolImageUrlFor: mocks.mockPoolImageUrlFor,
+}));
+
 vi.mock('../../config.js', () => ({
   loadConfig: mocks.mockLoadConfig,
 }));
@@ -72,6 +82,30 @@ import { processRawItems, roundRobinBySource } from '../pipeline.js';
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 
+/**
+ * One timestamp for every fixture item, captured once.
+ *
+ * This is the fix for the flake tracked in #75, and the cause was neither mock leakage nor
+ * the semaphore. `makeItem` called `new Date()` per item, and processRawItems sorts
+ * NEWEST-FIRST — so items constructed later in an array literal were genuinely newer, and
+ * the ordering the tests assert held only while all of them landed inside the same
+ * millisecond. When the clock ticked mid-fixture the sort reordered them, which is why it
+ * failed roughly once in a hundred runs, more often on a loaded CI runner, and never under
+ * --sequence.shuffle.tests: shuffling test order does not change whether a millisecond ticks
+ * during a fixture.
+ *
+ * Reproduced exactly by making one item 1ms newer, which produced CI's failure verbatim:
+ *   expected [ 'blog', 'forum', 'forum' ] to deeply equal [ 'forum', 'forum', 'forum' ]
+ *
+ * Identical timestamps make the sort a no-op — Array.prototype.sort is stable, so equal
+ * elements keep input order — which is what every ordering assertion here already assumes.
+ * Still relative to now rather than a hardcoded date, so the recency-gate tests do not rot as
+ * the calendar moves past a fixed value.
+ *
+ * Tests that care about relative age set `published_at` explicitly and are unaffected.
+ */
+const FIXTURE_NOW = new Date().toISOString();
+
 function makeItem(id: string) {
   return {
     id,
@@ -80,8 +114,8 @@ function makeItem(id: string) {
     raw_title: 'Test',
     raw_text: 'Test content',
     raw_metadata: {},
-    published_at: new Date().toISOString(),
-    fetched_at: new Date().toISOString(),
+    published_at: FIXTURE_NOW,
+    fetched_at: FIXTURE_NOW,
     processed: false,
   };
 }
@@ -123,12 +157,36 @@ const defaultConfig = {
   dryRun: false,
   env: 'dev' as const,
   pipelineVersion: '1.0.0',
+  // The run log reports the model and prompt actually configured rather than guessing from
+  // env, so the fixture has to carry providers like the real config does. It previously did
+  // not need to, which is a small illustration of the bug: nothing in the pipeline had ever
+  // read what model it was using.
+  llmProviders: [
+    { label: 'test', baseUrl: 'http://test.local/v1', apiKey: 'k', model: 'test-model', prompt: 'v1' as const },
+  ],
+  perCardImages: false,
 };
 
 // ── Setup ────────────────────────────────────────────────────────────────
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  // resetAllMocks, not clearAllMocks. clearAllMocks wipes call history but LEAVES
+  // implementations, including any queued mockResolvedValueOnce that a test did not consume
+  // — so a leftover Once can be picked up by whichever test runs next, which then gets a
+  // stale value instead of the default below.
+  //
+  // This is HARDENING, not a diagnosed fix. Two non-reproducing failures appeared in this
+  // file, and this hazard is the most plausible mechanism, but I could not reproduce either
+  // failure on the old code — not in repeated full runs, nor in eight runs with
+  // --sequence.shuffle.tests. So the flake remains unexplained; this only removes a class of
+  // order-dependence that could produce it. See the tracking issue before assuming it is
+  // solved.
+  vi.resetAllMocks();
+
+  // Reset clears implementations too, so every mock the tests rely on is re-established
+  // here rather than inherited from whatever happened to run before.
+  mocks.mockGetUnprocessedItems.mockResolvedValue([]);
+  mocks.mockNormalize.mockReturnValue(null);
 
   // Default config
   mocks.mockLoadConfig.mockReturnValue({ ...defaultConfig });
@@ -140,6 +198,7 @@ beforeEach(() => {
   mocks.mockSummarize.mockResolvedValue({
     headline: 'Test Headline',
     summary: 'Test summary text.',
+    stats: null,
     signals: defaultSignals,
   });
   mocks.mockScoreQualityBreakdown.mockReturnValue({
@@ -151,6 +210,8 @@ beforeEach(() => {
   mocks.mockShouldAutoSuppress.mockReturnValue(false);
   mocks.mockHashUrl.mockReturnValue('abc123hash');
   mocks.mockCreateCard.mockResolvedValue('card-uuid-1');
+  mocks.mockGenerateImageFor.mockResolvedValue(undefined);
+  mocks.mockPoolImageUrlFor.mockResolvedValue('https://cdn.test/pool/UPGRADE/3.png');
 });
 
 // ── Tests ────────────────────────────────────────────────────────────────
@@ -506,6 +567,10 @@ describe('processRawItems', () => {
       signals: defaultSignals,
     });
     expect(mocks.mockCreateCard).toHaveBeenCalledWith({
+      // Generated here rather than by the database, so the pool image can be derived from it
+      // and written in the same insert.
+      id: expect.stringMatching(/^[0-9a-f-]{36}$/),
+      imageUrl: 'https://cdn.test/pool/UPGRADE/3.png',
       sourceId: normalized.sourceId,
       canonicalUrl: normalized.canonicalUrl,
       urlHash: 'abc123hash',
@@ -521,8 +586,107 @@ describe('processRawItems', () => {
       // later — picking a threshold blind is how the old one became unreachable.
       quality: { score: 0.8, sourceWeight: 1, contentSignals: 0.9, generation: 0.7 },
       signals: defaultSignals,
+      stats: null,
     });
     expect(mocks.mockMarkAsProcessed).toHaveBeenCalledWith('item-1');
+  });
+
+  it('stores the stat row the summarizer produced', async () => {
+    // Without this the stat row can be silently dropped between summarize and createCard
+    // and every other test still passes, because they assert createCard params with an
+    // object that omits `stats` — and an undefined property compares equal to an absent
+    // one. That is precisely how skip_reason could have shipped computing a value it
+    // never wrote down.
+    const stats = [
+      { value: '$1.51B', label: 'SUPPLY' },
+      { value: '6.50%', label: '24H CHANGE' },
+    ];
+    mocks.mockGetUnprocessedItems.mockResolvedValue([makeItem('item-1')]);
+    mocks.mockNormalize.mockReturnValue(makeNormalized('item-1'));
+    mocks.mockSummarize.mockResolvedValue({
+      headline: 'Test Headline',
+      summary: 'Test summary text.',
+      stats,
+      signals: defaultSignals,
+    });
+
+    await processRawItems();
+
+    expect(mocks.mockCreateCard).toHaveBeenCalledWith(expect.objectContaining({ stats }));
+  });
+
+  it('stores a null stat row without failing the card', async () => {
+    // Null is the ordinary case, not an error: ~40% of real summaries carry fewer than two
+    // figures and legitimately have no row.
+    mocks.mockGetUnprocessedItems.mockResolvedValue([makeItem('item-1')]);
+    mocks.mockNormalize.mockReturnValue(makeNormalized('item-1'));
+
+    const result = await processRawItems();
+
+    expect(result).toEqual({ processed: 1, skipped: 0, failed: 0 });
+    expect(mocks.mockCreateCard).toHaveBeenCalledWith(expect.objectContaining({ stats: null }));
+  });
+
+  it('does not generate a per-card image unless explicitly enabled', async () => {
+    // Per-card generation costs ~$0.015 every card. It was previously always wired and only
+    // inert on production because the workflow happens not to pass OPENROUTER_API_KEY —
+    // behaviour that depends on a credential being absent is a coincidence, not a decision.
+    // This pins the default so nobody re-enables $5.85/month by adding an unrelated secret.
+    mocks.mockGetUnprocessedItems.mockResolvedValue([makeItem('item-1')]);
+    mocks.mockNormalize.mockReturnValue(makeNormalized('item-1'));
+    mocks.mockClassify.mockReturnValue('SECURITY');
+    mocks.mockSupabase.from.mockReturnValue({ insert: vi.fn().mockResolvedValue({ error: null }) });
+
+    await processRawItems();
+
+    expect(mocks.mockGenerateImageFor).not.toHaveBeenCalled();
+  });
+
+  it('generates a per-card image when the flag is on', async () => {
+    mocks.mockLoadConfig.mockReturnValue({ ...defaultConfig, perCardImages: true });
+    mocks.mockGetUnprocessedItems.mockResolvedValue([makeItem('item-1')]);
+    mocks.mockNormalize.mockReturnValue(makeNormalized('item-1'));
+    mocks.mockClassify.mockReturnValue('SECURITY');
+    mocks.mockSupabase.from.mockReturnValue({ insert: vi.fn().mockResolvedValue({ error: null }) });
+
+    await processRawItems();
+
+    expect(mocks.mockGenerateImageFor).toHaveBeenCalledWith(
+      'card-uuid-1',
+      'SECURITY',
+      'Test summary text.',
+    );
+  });
+
+  it('assigns a pool image at creation, in the same insert as the card', async () => {
+    // The gap this closes: assignment used to live only in a backfill script, so "every card
+    // has an image" was true of the 33 cards present when it ran and false of every card
+    // written afterwards. A property that a script has to keep re-establishing is not a
+    // property.
+    mocks.mockGetUnprocessedItems.mockResolvedValue([makeItem('item-1')]);
+    mocks.mockNormalize.mockReturnValue(makeNormalized('item-1'));
+
+    await processRawItems();
+
+    const params = mocks.mockCreateCard.mock.calls[0][0];
+    expect(params.imageUrl).toBe('https://cdn.test/pool/UPGRADE/3.png');
+    // The id is generated here, not by the database, so the pool index can be derived from
+    // it before the insert instead of needing a second write.
+    expect(params.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+    expect(mocks.mockPoolImageUrlFor).toHaveBeenCalledWith('ANNOUNCEMENT', params.id);
+  });
+
+  it('still writes the card when its category has no pool image', async () => {
+    // Null is a normal state — a category whose pool has not been generated renders the
+    // dither. It must not cost the card.
+    mocks.mockPoolImageUrlFor.mockResolvedValue(null);
+    mocks.mockGetUnprocessedItems.mockResolvedValue([makeItem('item-1')]);
+    mocks.mockNormalize.mockReturnValue(makeNormalized('item-1'));
+
+    const result = await processRawItems();
+
+    expect(result).toEqual({ processed: 1, skipped: 0, failed: 0 });
+    expect(mocks.mockCreateCard.mock.calls[0][0].imageUrl).toBeNull();
   });
 
   it('queues SECURITY category cards to high_priority_queue', async () => {

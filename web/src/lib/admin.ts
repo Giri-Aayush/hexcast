@@ -27,7 +27,7 @@ export async function isAdmin(): Promise<{ admin: boolean; userId: string | null
     // someone tries to reach /admin.
     console.warn(
       '[admin] ADMIN_USER_IDS is empty, so no user can moderate. ' +
-        `Set it to a comma-separated list of Clerk user ids; this caller is ${userId}.`,
+        `Set it to a comma-separated list of Better Auth user ids; this caller is ${userId}.`,
     );
   }
 

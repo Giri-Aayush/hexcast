@@ -1,6 +1,7 @@
 import OpenAI from 'openai';
 import { logger } from '../utils/logger.js';
 import { checkEntityPreservation, checkInvention } from './entity-checker.js';
+import { extractStats, type Stat } from './stat-extractor.js';
 import { loadConfig, type LlmProvider } from '../config.js';
 
 // ── AI Client Setup ────────────────────────────────────────────────────
@@ -222,7 +223,7 @@ export interface SummarySignals {
 export async function summarize(
   fullText: string,
   title: string
-): Promise<{ headline: string; summary: string; signals: SummarySignals }> {
+): Promise<{ headline: string; summary: string; stats: Stat[] | null; signals: SummarySignals }> {
   const endpoints = loadEndpoints();
   const primary = endpoints[0];
   const promptVersion = primary.prompt;
@@ -371,9 +372,26 @@ export async function summarize(
 
   const headline = headlineText || title.split(' ').slice(0, 12).join(' ');
 
+  // Stats last, and only from the summary — never the source. The row shows a figure in
+  // large type, and anything the summary dropped is a figure we already decided was not
+  // among the card's most important facts. Extracting from the source could put a number
+  // on the card that its own text never mentions.
+  const stats = await extractStats(summary, ({ system, user, maxTokens }) =>
+    callWithFailover(endpoints, (endpoint) => ({
+      ...endpoint.extraBody,
+      model: endpoint.model,
+      max_tokens: maxTokens,
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: user },
+      ],
+    })).then((r) => r.text),
+  );
+
   return {
     headline,
     summary,
+    stats,
     signals: {
       attempts,
       wordCount: countWords(summary),

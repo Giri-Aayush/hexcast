@@ -82,7 +82,7 @@ export default async function CardPage({ params }: Props) {
         actions replaced by "open the full feed". Server-rendered; no client state. */}
     <main className="hx-perma">
       <header className="hx-perma-head">
-        <Link href="/" aria-label="Back to feed" className="hx-perma-back">
+        <Link href="/feed" aria-label="Back to feed" className="hx-perma-back">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M10 3L5 8l5 5" />
           </svg>
@@ -112,12 +112,20 @@ export default async function CardPage({ params }: Props) {
             )}
           </p>
         </div>
-        <div className="hx-spacer" />
+        {/* Cover art in the body, same as the feed card. Server component, so no
+            onError fallback — but the pool only assigns image URLs that exist, so a
+            404 isn't a live risk here. */}
+        {card.image_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img className="hx-cardimg" src={card.image_url} alt="" aria-hidden="true" loading="lazy" decoding="async" />
+        ) : (
+          <div className="hx-spacer" />
+        )}
         <div className="hx-meta">
           {extractDomain(card.canonical_url).toUpperCase()} · {relativeTime(card.published_at).toUpperCase()}
         </div>
         <div className="hx-perma-cta">
-          <Link href="/" className="hx-btn-ink" style={{ flex: 1, justifyContent: 'center' }}>
+          <Link href="/feed" className="hx-btn-ink" style={{ flex: 1, justifyContent: 'center' }}>
             Open the full feed
           </Link>
           <a href={card.canonical_url} target="_blank" rel="noopener noreferrer" className="hx-btn-quiet">

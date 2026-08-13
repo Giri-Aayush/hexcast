@@ -19,9 +19,11 @@ beforeEach(() => {
 describe('middleware', () => {
   describe('non-API routes', () => {
     it('passes non-API routes through without rate limiting', async () => {
-      const request = new NextRequest('http://localhost/about');
+      // A public, non-gated page: the invariant here is only that the limiter never
+      // ran. (Gated prefixes like /about now redirect a cookie-less visitor — that is
+      // covered in 'auth gate' below.)
+      const request = new NextRequest('http://localhost/sign-in');
       const result = await middleware(request as any);
-      // Plain pass-through — the invariant is that the limiter never ran.
       expect(result!.status).toBe(200);
       expect(mockCheckRateLimit).not.toHaveBeenCalled();
     });
@@ -38,6 +40,50 @@ describe('middleware', () => {
       const result = await middleware(request as any);
       expect(result!.status).toBe(200);
       expect(mockCheckRateLimit).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('auth gate', () => {
+    it('redirects a cookie-less visitor away from a gated route', async () => {
+      const request = new NextRequest('http://localhost/feed');
+      const result = (await middleware(request as any)) as Response;
+      expect(result.status).toBe(307);
+      expect(result.headers.get('location')).toContain('/sign-in');
+    });
+
+    it('gates nested paths under a gated prefix', async () => {
+      const request = new NextRequest('http://localhost/saved/anything');
+      const result = (await middleware(request as any)) as Response;
+      expect(result.status).toBe(307);
+    });
+
+    it('lets a visitor with a session cookie through', async () => {
+      const request = new NextRequest('http://localhost/feed', {
+        headers: { cookie: 'better-auth.session_token=abc123' },
+      });
+      const result = await middleware(request as any);
+      expect(result!.status).toBe(200);
+    });
+
+    it('recognises the __Secure- prefixed cookie production adds over https', async () => {
+      const request = new NextRequest('http://localhost/feed', {
+        headers: { cookie: '__Secure-better-auth.session_token=abc123' },
+      });
+      const result = await middleware(request as any);
+      expect(result!.status).toBe(200);
+    });
+
+    it('leaves public routes ungated', async () => {
+      for (const path of ['/', '/sign-in']) {
+        const result = await middleware(new NextRequest(`http://localhost${path}`) as any);
+        expect(result!.status).toBe(200);
+      }
+    });
+
+    it('leaves shareable card permalinks public', async () => {
+      const request = new NextRequest('http://localhost/card/abc-123');
+      const result = await middleware(request as any);
+      expect(result!.status).toBe(200);
     });
   });
 
