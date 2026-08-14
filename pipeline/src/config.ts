@@ -158,6 +158,13 @@ export function loadConfig() {
     // excluding an entire category — see the gate in processRawItems.
     minSourceIdentifiers: parseInt(process.env.MIN_SOURCE_IDENTIFIERS ?? '3', 10),
     /**
+     * Hard ceiling on cards written per UTC day. Summarization is the only per-card cost that
+     * scales with volume, so this is the spend ceiling expressed in the unit that actually
+     * drives it. UTC because the cron runs UTC and both card timestamps are timestamptz —
+     * picking the runner's local day would move the boundary with the runner.
+     */
+    maxCardsPerDay: parseInt(process.env.MAX_CARDS_PER_DAY ?? '100', 10),
+    /**
      * Generate a unique cover image per high-priority card, instead of assigning from the
      * reusable category pool. Costs ~$0.015 per card written; the pool costs ~$2 once.
      * Defaults OFF so the expensive path is chosen deliberately rather than inherited.

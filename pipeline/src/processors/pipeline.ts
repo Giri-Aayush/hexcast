@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { RawItem } from '@hexcast/shared';
 import { getUnprocessedItems, markAsProcessed } from '../db/raw-items.js';
-import { createCard } from '../db/cards.js';
+import { createCard, countCardsSince } from '../db/cards.js';
 import { poolImageUrlFor } from '../db/card-images.js';
 import { normalize } from './normalizer.js';
 import { isDuplicate } from './deduplicator.js';
@@ -129,12 +129,36 @@ export async function processRawItems(
 
   const queue = drainOrder === 'round-robin' ? roundRobinBySource(byNewest) : byNewest;
 
-  // Batch limiting: only process up to batchSize items per run
-  // Remaining items will be picked up in the next pipeline run
-  const items = queue.slice(0, config.batchSize);
+  // Daily ceiling, checked BEFORE any LLM call. Every card costs a summarization, so this is
+  // the spend cap expressed in the unit that drives the spend. Counted from the database
+  // rather than tracked in the process, because the cron runs every 6 hours — four runs that
+  // each stayed under a per-run limit would still blow a daily one.
+  //
+  // UTC, explicitly: the cron runs UTC and fetched_at is timestamptz, so a local-time day
+  // boundary would drift with whatever runner picked up the job.
+  const startOfUtcDay = new Date();
+  startOfUtcDay.setUTCHours(0, 0, 0, 0);
+  const writtenToday = await countCardsSince(startOfUtcDay.toISOString());
+  const remainingToday = Math.max(0, config.maxCardsPerDay - writtenToday);
+
+  if (remainingToday === 0) {
+    logger.info(
+      `Daily cap reached: ${writtenToday} cards already written today (limit ${config.maxCardsPerDay}). ` +
+        `Skipping the process phase; ${allItems.length} items stay queued for tomorrow.`,
+    );
+    return { processed: 0, skipped: 0, failed: 0 };
+  }
+
+  // Batch limiting: only process up to batchSize items per run, and never past the day's
+  // remaining allowance. Remaining items will be picked up in the next pipeline run.
+  const effectiveBatch = Math.min(config.batchSize, remainingToday);
+  const items = queue.slice(0, effectiveBatch);
   const deferred = allItems.length - items.length;
 
-  logger.info(`Processing ${items.length} of ${allItems.length} unprocessed items (batch size: ${config.batchSize})`);
+  logger.info(
+    `Processing ${items.length} of ${allItems.length} unprocessed items ` +
+      `(batch size: ${config.batchSize}, daily allowance left: ${remainingToday} of ${config.maxCardsPerDay})`,
+  );
   if (deferred > 0) {
     logger.info(`${deferred} items deferred to next run`);
   }
