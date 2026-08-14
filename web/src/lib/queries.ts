@@ -138,6 +138,22 @@ export async function getPersonalizedCards(
     card.seen = seenIds.has(card.id);
   }
 
+  // The get_personalized_feed RPC doesn't select image_url, so feed cards came back
+  // without cover art and rendered the dither fallback — every card, the whole feed.
+  // (The permalink uses select * and was fine, which is why this hid.) Backfill it for
+  // just this page from the cards table: one query, page-sized. The `!card.image_url`
+  // guard makes it a no-op if the RPC is ever updated to return the column itself.
+  const missingArt = cards.filter((c) => !c.image_url).map((c) => c.id);
+  if (missingArt.length > 0) {
+    const { data: imgs } = await supabase.from('cards').select('id, image_url').in('id', missingArt);
+    if (imgs) {
+      const byId = new Map(imgs.map((r) => [r.id, r.image_url as string | null]));
+      for (const card of cards) {
+        if (!card.image_url) card.image_url = byId.get(card.id) ?? null;
+      }
+    }
+  }
+
   // Count against the trimmed page, not the overfetched pool — this is what
   // the client accumulates into a running "new cards" total across pages, so
   // it must reflect what was actually delivered, not what was fetched.
