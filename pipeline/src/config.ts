@@ -165,6 +165,20 @@ export function loadConfig() {
      */
     maxCardsPerDay: parseInt(process.env.MAX_CARDS_PER_DAY ?? '100', 10),
     /**
+     * How recent an item must be to be worth summarizing, in HOURS.
+     *
+     * maxSourceAgeDays is the archive bound — 90 days, "this is not news any more". This is the
+     * INGESTION bound: "we are not paying to summarize this". They are different questions and
+     * were previously the same number, which is why a day-old backlog was still eligible.
+     *
+     * Falls back to maxSourceAgeDays so an environment that only sets the old variable keeps
+     * its existing behaviour rather than silently tightening to 24h.
+     */
+    ingestMaxAgeHours: parseInt(
+      process.env.MAX_INGEST_AGE_HOURS ?? String(parseInt(process.env.MAX_SOURCE_AGE_DAYS ?? '90', 10) * 24),
+      10,
+    ),
+    /**
      * Generate a unique cover image per high-priority card, instead of assigning from the
      * reusable category pool. Costs ~$0.015 per card written; the pool costs ~$2 once.
      * Defaults OFF so the expensive path is chosen deliberately rather than inherited.
