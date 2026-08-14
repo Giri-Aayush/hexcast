@@ -30,10 +30,36 @@ function loadEndpoints(): Endpoint[] {
  * falling through would hide it behind a working fallback — which is exactly how a dead
  * OpenAI key sat undetected while every item failed.
  */
+/**
+ * A 403 can mean two opposite things and this function used to treat them as one.
+ *
+ * On 2026-08-14 the OpenRouter key hit its weekly limit and every call came back
+ * "403 Key limit exceeded (weekly limit)". 403 was not in the failover set, so each item threw
+ * — 98 times in a single run, 0 cards created, and the NVIDIA fallback we pay for precisely
+ * to survive this WAS NEVER TRIED. The prod feed froze for a day.
+ *
+ * The original comment was right that a rejected key must surface rather than hide behind a
+ * working fallback, which is how a dead OpenAI key once sat undetected. It was wrong that all
+ * 403s are that case. A quota 403 is a capacity problem — exactly what a second provider is
+ * for — and an auth 403 is ours. So they are separated by message rather than lumped by code.
+ *
+ * Matching on message text is not something to do lightly; provider prose changes. It is
+ * acceptable here because the fallback direction is the safe one: a misread auth 403 costs one
+ * wasted call to the fallback and still surfaces if that fails too, whereas a misread quota
+ * 403 costs the whole run. When in doubt, try the other provider.
+ */
+function isQuotaExhausted(error: unknown): boolean {
+  const message = String((error as { message?: string })?.message ?? '');
+  return /limit exceeded|quota|insufficient|credit|out of funds|billing/i.test(message);
+}
+
 function isWorthFailingOver(error: unknown): boolean {
   const status = (error as { status?: number })?.status;
   if (status === undefined) return true; // no HTTP status: timeout, DNS, socket
   if (status === 429) return true;
+  // A spent quota, however the provider spells it. 402 is the explicit "payment required".
+  if (status === 402) return true;
+  if (status === 403 && isQuotaExhausted(error)) return true;
   return status >= 500;
 }
 

@@ -84,3 +84,20 @@ export async function findByTimeRange(
   if (error) throw new Error(`Failed to find cards in time range: ${error.message}`);
   return data ?? [];
 }
+
+/**
+ * How many cards have been written since a given instant.
+ *
+ * Exists for the daily spend cap. Counted from the database rather than tracked in the
+ * process, because the cron fires every 6 hours — four runs each under a per-run limit would
+ * still blow a daily one.
+ */
+export async function countCardsSince(sinceIso: string): Promise<number> {
+  const { count, error } = await supabase
+    .from('cards')
+    .select('*', { count: 'exact', head: true })
+    .gte('fetched_at', sinceIso);
+
+  if (error) throw new Error(`Failed to count cards since ${sinceIso}: ${error.message}`);
+  return count ?? 0;
+}
