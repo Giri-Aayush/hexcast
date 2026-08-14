@@ -69,6 +69,11 @@ jobs:
           # News product: skip archive. 90 days keeps ~814 items, drops ~1,290 too old.
           # getCards has no age filter, so without this anon visitors see 2017 posts.
           MAX_SOURCE_AGE_DAYS: '90'
+          # Do not PAY to summarize old news. Distinct from the 90-day archive bound above:
+          # that one decides what may be shown, this decides what is worth an LLM call. A
+          # day-old backlog was still eligible under the 90-day number alone, which is how a
+          # restored key would have spent its first run churning through stale items.
+          MAX_INGEST_AGE_HOURS: '24'
           # Fallback 1 — NVIDIA, the only free provider with no daily wall, so it can
           # actually carry a DeepSeek outage. Groq/OpenRouter-free would cap out.
           LLM_FALLBACK_BASE_URL: https://integrate.api.nvidia.com/v1

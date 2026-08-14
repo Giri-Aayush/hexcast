@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { RawItem } from '@hexcast/shared';
-import { getUnprocessedItems, markAsProcessed } from '../db/raw-items.js';
+import { getUnprocessedItems, markAsProcessed, markManyAsProcessed } from '../db/raw-items.js';
 import { createCard, countCardsSince } from '../db/cards.js';
 import { poolImageUrlFor } from '../db/card-images.js';
 import { normalize } from './normalizer.js';
@@ -127,7 +127,46 @@ export async function processRawItems(
       - new Date(a.published_at ?? a.fetched_at).getTime(),
   );
 
-  const queue = drainOrder === 'round-robin' ? roundRobinBySource(byNewest) : byNewest;
+  // Declared before the freshness partition below, which retires stale items and must count
+  // them. Every skip reason is tallied in one place so the run can report a breakdown rather
+  // than a bare "N skipped", which reads identically whether the gates are working or a
+  // misconfigured window is rejecting everything.
+  let processed = 0;
+  let skipped = 0;
+  let failed = 0;
+  const skipReasons = { empty: 0, tooOld: 0, tooThin: 0, duplicate: 0, lowQuality: 0, dryRun: 0 };
+
+  // Stale items are dropped from the QUEUE, not skipped inside the batch.
+  //
+  // The obvious implementation — let the existing age gate reject them one by one — quietly
+  // does not work. The batch is 100 items and the daily cap counts CARDS CREATED, so a batch
+  // filled with 100 stale items produces zero cards, consumes the run, and the feed still does
+  // not grow. Clearing a 1,500-item backlog that way takes fifteen runs during which nothing
+  // is published.
+  //
+  // So they are partitioned out first and marked processed in bulk, with no LLM call, and the
+  // batch is then drawn entirely from items that can actually become cards. One run clears the
+  // backlog AND publishes a full batch of today's news.
+  const cutoff = Date.now() - config.ingestMaxAgeHours * 3_600_000;
+  const isFresh = (item: RawItem) => {
+    const published = new Date(item.published_at ?? item.fetched_at).getTime();
+    return !Number.isFinite(published) || published >= cutoff;
+  };
+
+  const fresh = byNewest.filter(isFresh);
+  const stale = byNewest.filter((item) => !isFresh(item));
+
+  if (stale.length > 0) {
+    await markManyAsProcessed(stale.map((item) => item.id), 'tooOld');
+    skipReasons.tooOld += stale.length;
+    skipped += stale.length;
+    logger.info(
+      `Retired ${stale.length} items older than ${config.ingestMaxAgeHours}h without summarizing them ` +
+        `(no LLM cost). ${fresh.length} fresh items remain eligible.`,
+    );
+  }
+
+  const queue = drainOrder === 'round-robin' ? roundRobinBySource(fresh) : fresh;
 
   // Daily ceiling, checked BEFORE any LLM call. Every card costs a summarization, so this is
   // the spend cap expressed in the unit that drives the spend. Counted from the database
@@ -136,6 +175,7 @@ export async function processRawItems(
   //
   // UTC, explicitly: the cron runs UTC and fetched_at is timestamptz, so a local-time day
   // boundary would drift with whatever runner picked up the job.
+
   const startOfUtcDay = new Date();
   startOfUtcDay.setUTCHours(0, 0, 0, 0);
   const writtenToday = await countCardsSince(startOfUtcDay.toISOString());
@@ -188,13 +228,9 @@ export async function processRawItems(
   );
   logger.info(`Concurrency: ${config.concurrency} workers`);
 
-  let processed = 0;
-  let skipped = 0;
-  let failed = 0;
   // Why things were skipped, not just how many. A run that reports "107 skipped" looks
   // identical whether the gates are working or a misconfigured window is rejecting
   // everything — and the individual reasons are debug-level, which production does not log.
-  const skipReasons = { empty: 0, tooOld: 0, tooThin: 0, duplicate: 0, lowQuality: 0, dryRun: 0 };
   const startTime = Date.now();
   const sem = new Semaphore(config.concurrency);
 

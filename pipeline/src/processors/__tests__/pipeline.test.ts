@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => {
   return {
     mockGetUnprocessedItems: vi.fn(),
     mockMarkAsProcessed: vi.fn(),
+    mockMarkManyAsProcessed: vi.fn(),
     mockCreateCard: vi.fn(),
     mockCountCardsSince: vi.fn(),
     mockNormalize: vi.fn(),
@@ -26,6 +27,7 @@ const mocks = vi.hoisted(() => {
 vi.mock('../../db/raw-items.js', () => ({
   getUnprocessedItems: mocks.mockGetUnprocessedItems,
   markAsProcessed: mocks.mockMarkAsProcessed,
+  markManyAsProcessed: mocks.mockMarkManyAsProcessed,
 }));
 
 vi.mock('../../db/cards.js', () => ({
@@ -168,6 +170,9 @@ const defaultConfig = {
   ],
   perCardImages: false,
   maxCardsPerDay: 100,
+  // Wide by default: only the cutoff tests care, and a narrow value here would retire every
+  // fixture item as stale.
+  ingestMaxAgeHours: 24 * 36_500,
 };
 
 // ── Setup ────────────────────────────────────────────────────────────────
@@ -190,6 +195,7 @@ beforeEach(() => {
   // here rather than inherited from whatever happened to run before.
   // Nothing written today, so the daily cap is inert for every test that is not about it.
   mocks.mockCountCardsSince.mockResolvedValue(0);
+  mocks.mockMarkManyAsProcessed.mockResolvedValue(undefined);
   mocks.mockGetUnprocessedItems.mockResolvedValue([]);
   mocks.mockNormalize.mockReturnValue(null);
 
@@ -722,6 +728,42 @@ describe('processRawItems', () => {
     await processRawItems();
 
     expect(mocks.mockNormalize).toHaveBeenCalledTimes(2);
+  });
+
+  it('retires stale items in bulk without summarizing them, and keeps the batch for fresh news', async () => {
+    // The trap this avoids: letting the per-item age gate reject them would fill the batch with
+    // 100 stale items, produce zero cards, consume the run, and leave the feed frozen. Clearing
+    // a 1,500-item backlog that way takes fifteen runs publishing nothing.
+    mocks.mockLoadConfig.mockReturnValue({ ...defaultConfig, ingestMaxAgeHours: 24, batchSize: 2 });
+    const old = (id: string) => ({
+      ...makeItem(id),
+      published_at: new Date(Date.now() - 72 * 3_600_000).toISOString(),
+    });
+    const recent = (id: string) => ({
+      ...makeItem(id),
+      published_at: new Date(Date.now() - 2 * 3_600_000).toISOString(),
+    });
+    mocks.mockGetUnprocessedItems.mockResolvedValue([old('s1'), old('s2'), old('s3'), recent('f1'), recent('f2')]);
+    mocks.mockNormalize.mockImplementation((item: { id: string }) => makeNormalized(item.id));
+
+    const result = await processRawItems();
+
+    // All three stale items retired in ONE call, no summarization spent on them.
+    expect(mocks.mockMarkManyAsProcessed).toHaveBeenCalledWith(['s1', 's2', 's3'], 'tooOld');
+    // And the batch went entirely to the fresh items.
+    expect(mocks.mockNormalize.mock.calls.map((c) => c[0].id)).toEqual(['f1', 'f2']);
+    expect(result.processed).toBe(2);
+    expect(result.skipped).toBe(3);
+  });
+
+  it('does not call the bulk retire when everything is fresh', async () => {
+    mocks.mockLoadConfig.mockReturnValue({ ...defaultConfig, ingestMaxAgeHours: 24 });
+    mocks.mockGetUnprocessedItems.mockResolvedValue([makeItem('item-1')]);
+    mocks.mockNormalize.mockReturnValue(makeNormalized('item-1'));
+
+    await processRawItems();
+
+    expect(mocks.mockMarkManyAsProcessed).not.toHaveBeenCalled();
   });
 
   it('queues SECURITY category cards to high_priority_queue', async () => {

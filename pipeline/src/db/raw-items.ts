@@ -60,3 +60,28 @@ export async function markAsProcessed(id: string, skipReason?: SkipReason): Prom
 
   if (error) throw new Error(`Failed to mark item ${id} as processed: ${error.message}`);
 }
+
+/**
+ * Mark many items processed in one pass, with a shared skip reason.
+ *
+ * Exists for the freshness cutoff, which retires a whole stale backlog without spending an LLM
+ * call on any of it. One row at a time would be 1,500 round trips.
+ *
+ * Chunked deliberately. A previous probe built a single `IN` filter with 120 URLs, exceeded the
+ * request limit, and came back with zero rows AND no error — so it looked like "nothing
+ * matched" rather than "the query was too big". 200 ids per chunk stays well inside the limit,
+ * and every chunk's error is surfaced rather than swallowed.
+ */
+export async function markManyAsProcessed(ids: string[], skipReason: SkipReason): Promise<void> {
+  const CHUNK = 200;
+  for (let i = 0; i < ids.length; i += CHUNK) {
+    const { error } = await supabase
+      .from('raw_items')
+      .update({ processed: true, skip_reason: skipReason })
+      .in('id', ids.slice(i, i + CHUNK));
+
+    if (error) {
+      throw new Error(`Failed to bulk-mark ${ids.length} items as ${skipReason}: ${error.message}`);
+    }
+  }
+}
