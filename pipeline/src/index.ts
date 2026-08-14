@@ -194,9 +194,32 @@ async function main() {
   }
 }
 
+/**
+ * Exit explicitly rather than waiting for the event loop to drain.
+ *
+ * This is a batch job: when the work is done the process should end. Relying on the loop
+ * emptying makes termination a property of every library that ever opens a handle, and the
+ * failure is expensive and silent — a completed run that hangs reads as a cancelled run, so
+ * the status lies in the direction of alarm while the work actually succeeded.
+ *
+ * WHAT IS KNOWN: on 2026-08-14 a production run finished its work and released its lock at
+ * 02:01:00, then sat idle for 118 minutes until GitHub cancelled it at the two-hour timeout.
+ * The success path had no explicit exit while the failure path already called process.exit(1),
+ * and that asymmetry is a real defect regardless of what held the loop.
+ *
+ * WHAT IS NOT KNOWN: which handle it was. Sentry is the obvious suspect since prod sets
+ * SENTRY_DSN and dev does not, but I could not reproduce the hang locally with a DSN set —
+ * the old code still exited in 11 seconds. Other candidates are keep-alive sockets left by
+ * ~100 failed provider requests. So this fix is a GUARANTEE rather than a cure: it makes
+ * termination independent of the cause instead of identifying it.
+ */
 main()
-  .catch((error) => {
-    logger.error('Pipeline fatal error:', error);
-    return logger.flush().then(() => process.exit(1));
+  .then(async () => {
+    await logger.close();
+    process.exit(0);
   })
-  .then(() => logger.flush());
+  .catch(async (error) => {
+    logger.error('Pipeline fatal error:', error);
+    await logger.close();
+    process.exit(1);
+  });

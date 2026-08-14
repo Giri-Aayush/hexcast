@@ -58,4 +58,17 @@ export const logger = {
   flush: async () => {
     if (sentryEnabled) await Sentry.flush(5000);
   },
+  /**
+   * Flush AND shut down, releasing the transport.
+   *
+   * Sentry.flush sends pending events but leaves the client running, so its background handles
+   * can keep the Node event loop alive. Closing is the correct cleanup for a batch job either
+   * way — but note this is NOT a confirmed diagnosis of the two-hour production hang. I tried
+   * to reproduce that locally with SENTRY_DSN set and the old code still exited in 11 seconds,
+   * so Sentry is a candidate and not the established cause. See the exit handling in index.ts,
+   * which is the part that actually guarantees termination.
+   */
+  close: async () => {
+    if (sentryEnabled) await Sentry.close(5000);
+  },
 };
