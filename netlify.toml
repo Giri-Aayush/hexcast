@@ -1,5 +1,9 @@
 [build]
-  command = "npm ci && npm run build"
+  # Install only the web app + its shared package, not the whole monorepo. The
+  # pipeline workspace (28 deps incl. sharp, a native binary) is never used by the
+  # site and only slowed every build. Falls back to a full install if scoping ever
+  # misses something, so the build cannot break from this.
+  command = "(npm ci --include-workspace-root -w web -w packages/shared || npm ci) && npm run build"
   publish = "web/.next"
   # Skip the build entirely when nothing the deployed site depends on changed.
   # Half of one heavy session's builds were pipeline-only PRs (summarizer/config)
