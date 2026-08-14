@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => {
     mockGetUnprocessedItems: vi.fn(),
     mockMarkAsProcessed: vi.fn(),
     mockCreateCard: vi.fn(),
+    mockCountCardsSince: vi.fn(),
     mockNormalize: vi.fn(),
     mockIsDuplicate: vi.fn(),
     mockClassify: vi.fn(),
@@ -29,6 +30,7 @@ vi.mock('../../db/raw-items.js', () => ({
 
 vi.mock('../../db/cards.js', () => ({
   createCard: mocks.mockCreateCard,
+  countCardsSince: mocks.mockCountCardsSince,
 }));
 
 vi.mock('../normalizer.js', () => ({
@@ -165,6 +167,7 @@ const defaultConfig = {
     { label: 'test', baseUrl: 'http://test.local/v1', apiKey: 'k', model: 'test-model', prompt: 'v1' as const },
   ],
   perCardImages: false,
+  maxCardsPerDay: 100,
 };
 
 // ── Setup ────────────────────────────────────────────────────────────────
@@ -185,6 +188,8 @@ beforeEach(() => {
 
   // Reset clears implementations too, so every mock the tests rely on is re-established
   // here rather than inherited from whatever happened to run before.
+  // Nothing written today, so the daily cap is inert for every test that is not about it.
+  mocks.mockCountCardsSince.mockResolvedValue(0);
   mocks.mockGetUnprocessedItems.mockResolvedValue([]);
   mocks.mockNormalize.mockReturnValue(null);
 
@@ -687,6 +692,36 @@ describe('processRawItems', () => {
 
     expect(result).toEqual({ processed: 1, skipped: 0, failed: 0 });
     expect(mocks.mockCreateCard.mock.calls[0][0].imageUrl).toBeNull();
+  });
+
+  it('skips the process phase entirely once the daily cap is reached', async () => {
+    // Checked BEFORE any LLM call, because every card costs a summarization and the point of
+    // the cap is the spend, not the throughput. Counted from the database rather than per run:
+    // the cron fires every 6 hours, so four runs each under a per-run limit would still blow
+    // a daily one.
+    mocks.mockCountCardsSince.mockResolvedValue(100);
+    mocks.mockGetUnprocessedItems.mockResolvedValue([makeItem('item-1'), makeItem('item-2')]);
+    mocks.mockNormalize.mockReturnValue(makeNormalized('item-1'));
+
+    const result = await processRawItems();
+
+    expect(result).toEqual({ processed: 0, skipped: 0, failed: 0 });
+    expect(mocks.mockSummarize).not.toHaveBeenCalled();
+    expect(mocks.mockNormalize).not.toHaveBeenCalled();
+  });
+
+  it('trims the batch to the day\'s remaining allowance', async () => {
+    // 98 written today, cap 100, batch size 10 -> only 2 may be processed.
+    mocks.mockLoadConfig.mockReturnValue({ ...defaultConfig, batchSize: 10, maxCardsPerDay: 100 });
+    mocks.mockCountCardsSince.mockResolvedValue(98);
+    mocks.mockGetUnprocessedItems.mockResolvedValue(
+      Array.from({ length: 10 }, (_, i) => makeItem(`item-${i}`)),
+    );
+    mocks.mockNormalize.mockImplementation((item: { id: string }) => makeNormalized(item.id));
+
+    await processRawItems();
+
+    expect(mocks.mockNormalize).toHaveBeenCalledTimes(2);
   });
 
   it('queues SECURITY category cards to high_priority_queue', async () => {
